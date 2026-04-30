@@ -16,7 +16,7 @@ body, html {
     background-color: #050505;
     font-family: "Almendra", serif;
     color: white;
-    background: url('/asssets/varkhul-background.png') no-repeat center 17.5%;
+    background: url('./asssets/varkhul-background.png') no-repeat center 17.5%;
     background-size: cover;
     background-attachment: fixed;
 }
@@ -78,7 +78,7 @@ body, html {
 }
 
 .folder-content {
-    background: #2a2a26 url('/asssets/Page-texture.png') no-repeat center center;
+    background: #2a2a26 url('./asssets/Page-texture.png') no-repeat center center;
     background-size: cover;
     min-height: 550px;
     padding: clamp(20px, 5vw, 60px);
@@ -135,7 +135,7 @@ body, html {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     z-index: -1; 
-    background: #2a2a26 url('/asssets/Page-texture.png') no-repeat center top; 
+    background: #2a2a26 url('./asssets/Page-texture.png') no-repeat center top; 
     background-size: cover;
     
     /* NO MORE 3D TRANSFORM. Just clean rounded top corners. */
