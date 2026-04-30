@@ -1,0 +1,24 @@
+{
+    "mold-earth": {
+        "name": "Moldar Terra",
+        "school": "transmutation",
+        "level": "Truque de Transmutação",
+        "casting_time": "1 Ação",
+        "range": "9 metros",
+        "components": "S",
+        "duration": "Instantanea ou 1 hora",
+        "description": "<p>Você escolhe uma porção de terra ou pedra que possa ver dentro do alcance e que caiba em um cubo de 1,5 metro. Você a manipula de uma das seguintes formas:</p><ul><li>Se você alvejar uma área de terra solta, pode escavá-la instantaneamente, movê-la pelo chão e depositá-la a até 1,5 metro de distância. Este movimento não envolve força suficiente para causar dano.</li><li>Você faz com que formas, cores, ou ambas apareçam na terra ou pedra, escrevendo palavras, criando imagens ou moldando padrões. As mudanças duram por 1 hora.</li><li>Se a terra ou pedra que você alvejar estiver no chão, você faz com que ela se torne <span class='lore-term' data-key='difficult_terrain'>terreno difícil</span>. Alternativamente, você pode fazer com que o chão se torne terreno normal se ele já for terreno difícil. Esta mudança dura por 1 hora.</li></ul><p>Se você conjurar este feitiço múltiplas vezes, poderá ter no máximo dois de seus efeitos não instantâneos ativos por vez, e poderá encerrar tal efeito como uma ação.</p>"
+    },  
+    
+    "escudo_arcano": {
+        "name": "Escudo Arcano",
+        "level": "Abjuração de 1º nível",
+        "casting_time": "1 Reação",
+        "range": "Pessoal",
+        "duration": "1 rodada",
+        "description": "Uma barreira invisível de força mágica aparece e protege você. Até o início do seu próximo turno, você ganha um bônus de +5 na CA."
+    },
+    "": {
+
+    }
+}
