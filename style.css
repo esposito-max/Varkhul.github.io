@@ -54,7 +54,7 @@ body, html {
 }
 
 .flavor-text {
-    color: #ffffff;
+    color: var(--red-text);
     font-family: "Almendra", serif;
     font-size: clamp(1.2rem, 1.5vw, 1.5rem);
     font-weight: 700;
@@ -78,8 +78,12 @@ body, html {
 }
 
 .folder-content {
-    background: #2a2a26 url('./asssets/Page-texture.png') no-repeat center center;
-    background-size: cover;
+    background-image: url('./asssets/Page-texture.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    /* This keeps the image at a fixed zoom level regardless of text length */
+    background-size: cover; 
+    background-attachment: fixed; /* Or 'fixed' for a parallax effect */
     min-height: 550px;
     padding: clamp(20px, 5vw, 60px);
     border-radius: 0 20px 20px 20px;
@@ -561,7 +565,7 @@ ul li {
     margin-left: 25px; 
     margin-bottom: 15px;
     
-    /* Optional: Gives it a nice soft edge and shadow to fit the dark fantasy vibe */
+    /* Optional: Gives it a nice soft edge and shadow to fit the dark fantasy vibe
     border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.6); */
 }
