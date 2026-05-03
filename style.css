@@ -180,6 +180,7 @@ body, html {
 .tab-content {
     display: none;
     color: #ffffff;
+    text-shadow: 2px 2px 4px rgba(0,  0, 0, 0.9);
     animation: fadeIn 0.8s ease-out;
 }
 
