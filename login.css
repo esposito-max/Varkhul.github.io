@@ -25,7 +25,7 @@ body {
     color: var(--text);
     background:
         linear-gradient(rgba(17, 16, 13, .86), rgba(17, 16, 13, .94)),
-        url('/varkhul-start-assets/varkhul-background.png') center/cover fixed;
+        url('/asssets/varkhul-background.png') center/cover fixed;
     font-family: 'Almendra', serif;
 }
 
