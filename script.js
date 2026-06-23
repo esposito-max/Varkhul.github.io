@@ -17,7 +17,24 @@ function openTab(evt, tabName) {
 }
 
 /* =========================================
-   2. SISTEMA DE TOOLTIPS DINÂMICOS (LORE & SPELLS)
+   2. SISTEMA DE SUB-ABAS RECURSIVAS (REINJETADO)
+   ========================================= */
+function openSubTab(evt, subTabName) {
+    const menuContainer = evt.currentTarget.parentElement;
+    const wrapper = menuContainer.parentElement;
+
+    const contents = wrapper.querySelectorAll(':scope > .sub-content');
+    contents.forEach(content => content.classList.remove('active'));
+
+    const tabs = menuContainer.querySelectorAll(':scope > .sub-tab-item');
+    tabs.forEach(tab => tab.classList.remove('active'));
+
+    document.getElementById(subTabName).classList.add('active');
+    evt.currentTarget.classList.add('active');
+}
+
+/* =========================================
+   3. SISTEMA DE TOOLTIPS DINÂMICOS (LORE & SPELLS)
    ========================================= */
 document.addEventListener("DOMContentLoaded", () => {
     let isPinned = false;
@@ -26,10 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let loreDictionary = {};
     let spellsDictionary = {};
 
-    // 1. Carregar os arquivos JSON simultaneamente
     Promise.all([
-        fetch('lore.json').then(res => res.json()),
-        fetch('spells.json').then(res => res.json())
+        fetch('/varkhul-start-lore.json').then(res => res.json()),
+        fetch('/varkhul-start-spells.json').then(res => res.json())
     ])
     .then(([loreData, spellsData]) => {
         loreDictionary = loreData;
@@ -37,14 +53,11 @@ document.addEventListener("DOMContentLoaded", () => {
     })
     .catch(error => console.error("Erro ao carregar dicionários JSON:", error));
 
-    // 2. Delegação de Eventos de Mouse (Hover)
     document.body.addEventListener('mouseover', (e) => {
         const term = e.target.closest('.lore-term, .spell-term');
 
         if (term) {
             const parentTooltip = term.closest('.lore-tooltip');
-            
-            // Se as tooltips estiverem fixadas, só permitimos novas tooltips se o mouse estiver DENTRO de uma já aberta
             if (!parentTooltip && isPinned) return;
 
             let level = 0;
@@ -60,13 +73,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.addEventListener('mouseout', (e) => {
         if (isPinned) return; 
         const term = e.target.closest('.lore-term, .spell-term');
-        // Se sair de um termo que não está dentro de uma tooltip, limpamos tudo
         if (term && !term.closest('.lore-tooltip')) {
             clearTooltipsFromLevel(0);
         }
     });
 
-    // 3. Listener de Teclado (Tecla T para Fixar/Esc para Sair)
     document.addEventListener('keydown', (e) => {
         if (e.key.toLowerCase() === 't') {
             if (tooltipStack.length > 0) {
@@ -94,7 +105,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 4. Função Principal de Criação de Tooltips
     function createTooltip(element, level) {
         if (tooltipStack[level] && tooltipStack[level].sourceElement === element) return;
 
@@ -109,13 +119,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let htmlContent = "";
         
-        // --- FORMATAÇÃO DE MAGIAS ---
         if (isSpell) {
             tt.className = 'lore-tooltip visible spell-format' + (isPinned ? ' pinned' : '') + (level > 0 ? ' nested' : '');
             const spell = spellsDictionary[key];
             
             if (spell) {
-                // Adicionamos a classe baseada na escola de magia para cores dinâmicas
                 const schoolClass = `school-${(spell.school || 'universal').toLowerCase()}`;
                 
                 htmlContent = `
@@ -140,15 +148,12 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 htmlContent = `<div class="tooltip-content"><i>Magia não encontrada...</i></div>`;
             }
-        }
-        // --- FORMATAÇÃO DE LORE (CORRIGIDO COM BACKTICKS) ---
-        else {
+        } else {
             tt.className = 'lore-tooltip visible' + (isPinned ? ' pinned' : '') + (level > 0 ? ' nested' : '');
             const definition = loreDictionary[key] || "<i>Definição não encontrada...</i>";
             htmlContent = `<div class="tooltip-content">${definition}</div>`;
         }
 
-        // Adicionar dica de fixação apenas na primeira tooltip da pilha
         if (level === 0) {
              htmlContent += `<div class="tooltip-hint">${isPinned ? 'Fixado. Aperte <b>T</b> ou <b>Esc</b> para fechar' : 'Pressione <b>T</b> para fixar'}</div>`;
         }
@@ -157,12 +162,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.appendChild(tt);
         tooltipStack[level] = tt;
 
-        // Lógica de Posicionamento
         const rect = element.getBoundingClientRect();
         let topPosition = rect.top + window.scrollY - tt.offsetHeight - 15;
         let leftPosition = rect.left + window.scrollX + (rect.width / 2);
 
-        // Efeito de cascata para tooltips aninhadas (nested)
         if (level > 0) {
             leftPosition += 20; 
             topPosition -= 20;  
@@ -172,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
         tt.style.left = leftPosition + 'px';
     }
 
-    // Função para limpar a pilha de tooltips a partir de um nível específico
     function clearTooltipsFromLevel(level) {
         while (tooltipStack.length > level) {
             const tt = tooltipStack.pop();
@@ -180,16 +182,3 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 });
-
-/* =========================================
-    SISTEMA DE SUB-ABAS (Adicionado)
-========================================= */
-function openSubTab(evt, subTabName) {
-    // Esconde todo o conteúdo de sub-abas
-    const allSubContents = document.querySelectorAll('.sub-content');
-    allSubContents.forEach(content => content.classList.remove('active'));    // Tira o destaque de todos os botões de sub-abas
-    const allSubLinks = document.querySelectorAll('.sub-tab-item');
-    allSubLinks.forEach(link => link.classList.remove('active'));    // Mostra apenas o alvo clicado
-    document.getElementById(subTabName).classList.add('active');
-    evt.currentTarget.classList.add('active');
-}
