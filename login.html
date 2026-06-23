@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Acesso ao Chronicle & Character de Varkhul">
+  <title>Entrar o Vazio — Chronicle & Character</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Almendra:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/login.css">
+</head>
+<body>
+  <main class="auth-page-shell">
+    <a class="auth-back-link" href="/index.html">← Retornar à biblioteca</a>
+    <section class="auth-card" aria-labelledby="auth-title">
+      <img src="/asssets/Varkhul-Logo.png" alt="" class="auth-logo">
+      <p class="auth-eyebrow">Chronicle &amp; Character</p>
+      <h1 id="auth-title">Entrar o Vazio</h1>
+      <p class="auth-intro">Acesse seu arquivo de personagem ou o painel do Mestre.</p>
+
+      <div class="auth-tabs" role="tablist" aria-label="Acesso à conta">
+        <button id="login-tab" class="auth-tab active" type="button" role="tab" aria-selected="true">Entrar</button>
+        <button id="signup-tab" class="auth-tab" type="button" role="tab" aria-selected="false">Criar conta</button>
+      </div>
+
+      <div id="auth-feedback" class="auth-feedback" aria-live="polite"></div>
+
+      <form id="email-auth-form" class="auth-form">
+        <label for="auth-email">E-mail</label>
+        <input id="auth-email" name="email" type="email" autocomplete="email" required placeholder="seu@email.com">
+        <label for="auth-password">Senha</label>
+        <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo de 8 caracteres">
+        <label id="confirm-password-row" class="confirm-password-row" for="auth-password-confirm" hidden>Confirmar senha
+          <input id="auth-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Repita a senha">
+        </label>
+        <button id="email-auth-submit" class="auth-primary" type="submit">Entrar com e-mail</button>
+      </form>
+
+      <div class="auth-divider"><span>ou</span></div>
+      <button id="discord-auth-button" class="discord-auth" type="button">
+        <span aria-hidden="true">◈</span>
+        <span id="discord-auth-label">Entrar com Discord</span>
+      </button>
+      <p class="auth-note">O primeiro acesso pelo Discord cria a conta automaticamente. A função depende do provedor Discord estar habilitado no Supabase.</p>
+    </section>
+  </main>
+  <script type="module" src="/login.js"></script>
+</body>
+</html>

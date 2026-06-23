@@ -1,0 +1,232 @@
+:root {
+    --background: #11100d;
+    --surface: #1e1a16;
+    --surface-warm: #251e18;
+    --card: #241d17;
+    --border: #8a6a3a;
+    --border-soft: #4a3a29;
+    --text: #e8e0c8;
+    --muted: #a69a7b;
+    --accent: #bfae68;
+    --danger: #922b21;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    color: var(--text);
+    background:
+        linear-gradient(rgba(17, 16, 13, .86), rgba(17, 16, 13, .94)),
+        url('/varkhul-start-assets/varkhul-background.png') center/cover fixed;
+    font-family: 'Almendra', serif;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+.auth-page-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 5rem 1.25rem 2rem;
+    position: relative;
+}
+
+.auth-back-link {
+    position: absolute;
+    top: 1.5rem;
+    left: 1.5rem;
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+}
+
+.auth-back-link:hover,
+.auth-back-link:focus-visible {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.auth-card {
+    width: min(100%, 31rem);
+    padding: clamp(1.5rem, 5vw, 2.5rem);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: linear-gradient(145deg, rgba(37, 30, 24, .97), rgba(30, 26, 22, .98));
+    box-shadow: 0 1.75rem 5rem rgba(0, 0, 0, .55), inset 0 0 2rem rgba(191, 174, 104, .04);
+}
+
+.auth-logo {
+    display: block;
+    width: 5.5rem;
+    margin: 0 auto .5rem;
+    filter: drop-shadow(0 0 1rem rgba(146, 43, 33, .35));
+}
+
+.auth-eyebrow {
+    margin: 0;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    font-size: .76rem;
+}
+
+h1 {
+    margin: .35rem 0 .5rem;
+    text-align: center;
+    font-size: clamp(2rem, 8vw, 3rem);
+}
+
+.auth-intro,
+.auth-note {
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.5;
+}
+
+.auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 1.5rem 0;
+    border: 1px solid var(--border-soft);
+    border-radius: .75rem;
+    overflow: hidden;
+}
+
+.auth-tab {
+    min-height: 2.8rem;
+    border: 0;
+    color: var(--muted);
+    background: var(--surface);
+    cursor: pointer;
+}
+
+.auth-tab.active {
+    color: #2f241b;
+    background: var(--accent);
+    font-weight: 700;
+}
+
+.auth-feedback {
+    min-height: 1.5rem;
+    margin-bottom: .75rem;
+    text-align: center;
+}
+
+.auth-feedback.error {
+    color: #e7a49c;
+}
+
+.auth-feedback.success {
+    color: #aebd84;
+}
+
+.auth-form {
+    display: grid;
+    gap: .65rem;
+}
+
+.auth-form label {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.auth-form input {
+    width: 100%;
+    min-height: 3rem;
+    padding: .7rem .85rem;
+    color: var(--text);
+    background: #11100d;
+    border: 1px solid var(--border-soft);
+    border-radius: .6rem;
+}
+
+.auth-form input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.confirm-password-row {
+    display: grid;
+    gap: .65rem;
+}
+
+.auth-primary,
+.discord-auth {
+    min-height: 3rem;
+    border-radius: .65rem;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.auth-primary {
+    margin-top: .4rem;
+    color: #2f241b;
+    background: var(--accent);
+    border: 1px solid var(--border);
+}
+
+.discord-auth {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .7rem;
+    color: #fff;
+    background: #5865f2;
+    border: 1px solid #7983f5;
+}
+
+.auth-primary:hover,
+.discord-auth:hover {
+    filter: brightness(1.08);
+}
+
+.auth-primary:disabled,
+.discord-auth:disabled {
+    opacity: .6;
+    cursor: wait;
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    margin: 1.25rem 0;
+    color: var(--muted);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    height: 1px;
+    flex: 1;
+    background: var(--border-soft);
+}
+
+.auth-note {
+    margin: 1rem 0 0;
+    font-size: .82rem;
+}
+
+@media (max-width: 520px) {
+    .auth-back-link {
+        top: .9rem;
+        left: 1rem;
+    }
+
+    .auth-page-shell {
+        padding-top: 4rem;
+    }
+}
