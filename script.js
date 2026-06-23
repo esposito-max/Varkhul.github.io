@@ -180,3 +180,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 });
+
+/* =========================================
+    SISTEMA DE SUB-ABAS (Adicionado)
+========================================= */
+function openSubTab(evt, subTabName) {
+    // Esconde todo o conteúdo de sub-abas
+    const allSubContents = document.querySelectorAll('.sub-content');
+    allSubContents.forEach(content => content.classList.remove('active'));    // Tira o destaque de todos os botões de sub-abas
+    const allSubLinks = document.querySelectorAll('.sub-tab-item');
+    allSubLinks.forEach(link => link.classList.remove('active'));    // Mostra apenas o alvo clicado
+    document.getElementById(subTabName).classList.add('active');
+    evt.currentTarget.classList.add('active');
+}

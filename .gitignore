@@ -1,0 +1,9 @@
+*
+!index.html
+!asssets/
+!Varkhulian_library/
+!script.js
+!style.css
+!lore.json
+!spells.json
+!.gitignore
