@@ -288,9 +288,10 @@ export async function requireAuthenticatedPage(expectedRole = null) {
   if (expectedRole) {
     const role = await getProfileRole(session);
     if (role !== expectedRole) {
-      window.location.replace(role === 'dm' ? '/dm.html' : '/player.html');
+      window.location.replace(role === 'dm' ? 'dm.html' : 'player.html');
       return null;
     }
   }
   return session;
 }
+
