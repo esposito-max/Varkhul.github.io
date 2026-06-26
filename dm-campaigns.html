@@ -1,7 +1,82 @@
-<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Campaigns — Chronicle & Character</title><link rel="stylesheet" href="./styles.css"></head>
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Gerenciamento de campanhas de Varkhul">
+  <title>Campanhas — Chronicle &amp; Character</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
 <body class="gm-body">
-<header class="gm-header"><a class="gm-brand" href="./dm.html"><img src="./assets/varkhul-mark.png" alt="" width="44" height="52"><span><small>Chronicle &amp; Character</small><strong>Game Master</strong></span></a><nav class="gm-nav" aria-label="GM navigation"><a data-gm-tab="home" href="./dm.html">Homepage</a><a data-gm-tab="lore" href="./dm-lore.html">Lore</a><a data-gm-tab="campaigns" href="./dm-campaigns.html">Campaigns</a><a data-gm-tab="resources" href="./dm-resources.html">Resources</a></nav><div class="gm-header-actions"><a class="secondary-button button-link" href="./player.html">Player Side</a><button id="theme-toggle" class="theme-toggle compact" type="button">Use Light Mode</button><button class="secondary-button auth-logout-button" type="button" data-auth-logout>Logout</button></div></header>
-<main class="gm-main"><header class="page-header"><div><p class="eyebrow">Campaign Management</p><h1>Campaigns</h1><p class="lead">Create campaigns and open their dedicated management panels.</p></div><button id="create-campaign-button" class="primary-button" type="button">Create Campaign</button></header><section id="gm-campaign-grid" class="campaign-card-grid"><div class="empty-state">Loading campaigns...</div></section></main>
-<dialog id="campaign-create-dialog" class="gm-dialog"><form id="campaign-create-form" class="gm-form-dialog"><div class="dialog-title-row"><div><p class="eyebrow">New Campaign</p><h2>Create Campaign</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="Close">×</button></div><label>Campaign Name<input name="name" required maxlength="120"></label><label>Starting Level<input name="startingLevel" type="number" min="1" max="20" value="1" required></label><label>Campaign Description<textarea name="description" rows="5" required></textarea></label><label>Homebrew Rules <small>JSON object</small><textarea name="homebrewRules" rows="6" placeholder='{"multiclassing":{"enabled":false}}'>{}</textarea></label><label class="gm-upload-zone" for="campaign-banner-input"><span>Banner Image</span><small>PNG, JPEG, or WebP — maximum 5 MB</small><input id="campaign-banner-input" type="file" accept="image/png,image/jpeg,image/webp"><img id="campaign-banner-preview" alt="" hidden></label><input name="bannerPath" type="hidden"><div id="campaign-create-feedback" aria-live="polite"></div><div class="dialog-action-row"><button type="button" class="secondary-button" data-close-dialog>Cancel</button><button class="primary-button" type="submit">Create Campaign</button></div></form></dialog>
-<script src="./runtime-config.js"></script>
-  <script type="module" src="./dm-campaigns.js"></script></body></html>
+  <header class="gm-header">
+    <a class="gm-brand" href="./dm.html">
+      <img src="./assets/varkhul-mark.png" alt="" width="44" height="52">
+      <span><small>Chronicle &amp; Character</small><strong>Mestre</strong></span>
+    </a>
+    <nav class="gm-nav" aria-label="Navegação do Mestre">
+      <a data-gm-tab="home" href="./dm.html">Início</a>
+      <a data-gm-tab="lore" href="./dm-lore.html">Lore</a>
+      <a data-gm-tab="campaigns" href="./dm-campaigns.html">Campanhas</a>
+      <a data-gm-tab="resources" href="./dm-resources.html">Recursos</a>
+    </nav>
+    <div class="gm-header-actions">
+      <a class="secondary-button button-link" href="./player.html">Área do jogador</a>
+      <button id="theme-toggle" class="theme-toggle compact" type="button">Usar tema claro</button>
+      <button class="secondary-button auth-logout-button" type="button" data-auth-logout>Sair</button>
+    </div>
+  </header>
+
+  <main class="gm-main">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Gerenciamento de campanhas</p>
+        <h1>Campanhas</h1>
+        <p class="lead">Crie campanhas e abra seus painéis dedicados de gerenciamento.</p>
+      </div>
+      <button id="create-campaign-button" class="primary-button" type="button">Criar campanha</button>
+    </header>
+    <section id="gm-campaign-grid" class="campaign-card-grid" aria-live="polite">
+      <div class="empty-state">Carregando campanhas...</div>
+    </section>
+  </main>
+
+  <dialog id="campaign-create-dialog" class="gm-dialog">
+    <form id="campaign-create-form" class="gm-form-dialog">
+      <div class="dialog-title-row">
+        <div><p class="eyebrow">Nova campanha</p><h2>Criar campanha</h2></div>
+        <button type="button" class="icon-button" data-close-dialog aria-label="Fechar">×</button>
+      </div>
+      <label>Nome da campanha
+        <input name="name" required maxlength="120" autocomplete="off">
+      </label>
+      <label>Nível inicial
+        <input name="startingLevel" type="number" min="1" max="20" value="1" required>
+      </label>
+      <label>Descrição da campanha <small>(opcional)</small>
+        <textarea name="description" rows="5" maxlength="10000"></textarea>
+      </label>
+      <fieldset class="campaign-rules-fieldset">
+        <legend>Regras próprias</legend>
+        <p class="muted">Adicione apenas as regras que alteram o funcionamento padrão da campanha.</p>
+        <div id="campaign-create-rules" class="campaign-rule-builder"></div>
+        <button id="campaign-create-add-rule" class="secondary-button compact-button" type="button">Adicionar regra</button>
+      </fieldset>
+      <label class="gm-upload-zone" for="campaign-banner-input">
+        <span>Imagem de capa</span>
+        <small>PNG, JPEG ou WebP — máximo de 5 MB</small>
+        <input id="campaign-banner-input" type="file" accept="image/png,image/jpeg,image/webp">
+        <img id="campaign-banner-preview" alt="Prévia da imagem de capa" hidden>
+      </label>
+      <input name="bannerPath" type="hidden">
+      <div id="campaign-create-feedback" aria-live="polite"></div>
+      <div class="dialog-action-row">
+        <button type="button" class="secondary-button" data-close-dialog>Cancelar</button>
+        <button class="primary-button" type="submit">Criar campanha</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="./runtime-config.js"></script>
+  <script type="module" src="./dm-campaigns.js"></script>
+</body>
+</html>

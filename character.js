@@ -1,4 +1,5 @@
 import { authenticatedFetch, initializeLogoutButtons, requireAuthenticatedPage } from './auth-client.js';
+import { displayValue, formatDate, markdownToHtml, structuredDataToHtml } from './gm-common.js';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
 const saveStatus = document.querySelector('#sheet-save-status');
@@ -64,41 +65,6 @@ function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
-function markdownToHtml(value) {
-  const safe = escapeHtml(value).replace(/\r\n?/g, '\n');
-  const lines = safe.split('\n');
-  let html = '';
-  let listOpen = false;
-  const inline = (line) => line
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, href) => {
-      const target = String(href).trim();
-      const lower = target.toLowerCase();
-      const allowed = target.startsWith('/') || target.startsWith('#') || lower.startsWith('https://') || lower.startsWith('http://') || lower.startsWith('mailto:');
-      return allowed ? `<a href="${target}"${lower.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : ''}>${label}</a>` : label;
-    })
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>');
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (/^[-*] /.test(line)) {
-      if (!listOpen) { html += '<ul>'; listOpen = true; }
-      html += `<li>${inline(line.slice(2))}</li>`;
-      continue;
-    }
-    if (listOpen) { html += '</ul>'; listOpen = false; }
-    if (!line) continue;
-    const heading = line.match(/^(#{1,4})\s+(.+)$/);
-    if (heading) {
-      const level = Math.min(6, heading[1].length + 1);
-      html += `<h${level}>${inline(heading[2])}</h${level}>`;
-    } else {
-      html += `<p>${inline(line)}</p>`;
-    }
-  }
-  if (listOpen) html += '</ul>';
-  return html;
-}
 function signed(value) { const number = Number(value); return number >= 0 ? `+${number}` : String(number); }
 function initializeTheme() {
   const saved = localStorage.getItem('chronicle-theme');
@@ -154,14 +120,15 @@ function classPalette(name) {
 function classNamePt(name) { return classNames[name] || name || '—'; }
 function spellName(key) { return String(key || '').split('|')[0]; }
 function roman(value) { return ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'][Number(value) - 1] || String(value); }
+const moneyLabels = { PP: 'PL', GP: 'PO', SP: 'PP', CP: 'PC' };
 function formatCurrency(totalCp) {
   let remaining = Math.max(0, Number(totalCp || 0));
-  const values = [['PP', 1000], ['GP', 100], ['SP', 10], ['CP', 1]];
+  const values = [['PL', 1000], ['PO', 100], ['PP', 10], ['PC', 1]];
   const parts = [];
   for (const [label, unit] of values) {
     const amount = Math.floor(remaining / unit); if (amount) parts.push(`${amount} ${label}`); remaining %= unit;
   }
-  return parts.join(' · ') || '0 CP';
+  return parts.join(' · ') || '0 PC';
 }
 function localizeAbility(value) { return abilityNames[value] || value || '—'; }
 function showStatus(message, kind = 'pending') { saveStatus.className = `status-badge ${kind}`; saveStatus.textContent = message; }
@@ -265,7 +232,7 @@ function render() {
             ${statBox('INI', signed(stats.initiative || 0))}
             ${statBox('CA', stats.armorClass || '—')}
             ${statBox('MOV', stats.movement || '—', true)}
-            ${statBox('PP', stats.passivePerception || '—')}
+            ${statBox('Per. passiva', stats.passivePerception || '—')}
             ${statBox('DV', Math.max(0, Number(stats.hitDiceTotal || character.level) - Number(state.hitDiceSpent || 0)))}
           </div>
           <div class="hp-controls">
@@ -384,7 +351,7 @@ function renderCharacterDetails({ sheet, identity, traits, portrait, initials })
       <label class="details-other"><span>Outros detalhes</span><textarea id="character-other-details" placeholder="Aparência, vínculos, aliados e outros detalhes">${escapeHtml(state.otherDetails || '')}</textarea></label>
     </section>
     <section class="details-characteristics-panel"><h2>Características detalhadas</h2><div class="details-characteristics-scroll">${renderDetailedTraits(traits, sheet)}</div></section>
-    <section class="details-notes-panel"><h2>Anotações do personagem</h2><textarea id="in-character-notes" placeholder="Anotações em-personagem">${escapeHtml(state.inCharacterNotes || state.notes || '')}</textarea><button id="save-play-state-details" class="primary-button" type="button">Salvar detalhes</button></section>
+    <section class="details-notes-panel"><h2>Anotações do personagem</h2><textarea id="in-character-notes" placeholder="Anotações em personagem">${escapeHtml(state.inCharacterNotes || state.notes || '')}</textarea><button id="save-play-state-details" class="primary-button" type="button">Salvar detalhes</button></section>
   </section>`;
   bindSheetInteractions();
   showStatus('Detalhes carregados', 'ok');
@@ -409,9 +376,9 @@ function renderAttacks(sheet) {
   if (!attacks.length) return '<div class="sheet-empty-tab"><strong>Nenhum ataque adicionado</strong><p>Adicione armas ou magias pelas abas correspondentes.</p></div>';
   return `<div class="attack-list">${attacks.map((attack) => {
     const castButtons = attack.sourceType === 'spell' ? `<div class="inline-actions">${attack.castable ? `<button type="button" class="primary-button compact-button" data-cast-spell="${escapeHtml(attack.sourceKey)}">Conjurar</button>` : ''}${attack.ritualAvailable ? `<button type="button" class="secondary-button compact-button" data-cast-ritual="${escapeHtml(attack.sourceKey)}">Conjurar ritual</button>` : ''}</div>` : '';
-    const labels = [...(attack.properties || []), ...(attack.mastery || []).map((value) => `Maestria: ${value}`)];
+    const labels = [...(attack.properties || []).map(displayValue), ...(attack.mastery || []).map((value) => `Maestria: ${displayValue(value)}`)];
     if (attack.ritual) labels.push('Ritual');
-    return `<article class="attack-card"><div><strong>${escapeHtml(attack.name)}</strong><span>${escapeHtml(attack.damageType || '')}</span></div><div class="attack-values"><b>${escapeHtml(attack.attack || '—')}</b><span>${escapeHtml(attack.damage || '—')}</span></div><p>${escapeHtml(labels.join(' · '))}</p>${castButtons}<button type="button" class="small-action danger" data-remove-attack="${escapeHtml(attack.sourceType)}" data-source-key="${escapeHtml(attack.sourceKey)}">Remover</button></article>`;
+    return `<article class="attack-card"><div><strong>${escapeHtml(attack.name)}</strong><span>${escapeHtml(displayValue(attack.damageType || ''))}</span></div><div class="attack-values"><b>${escapeHtml(attack.attack || '—')}</b><span>${escapeHtml(attack.damage || '—')}</span></div><p>${escapeHtml(labels.join(' · '))}</p>${castButtons}<button type="button" class="small-action danger" data-remove-attack="${escapeHtml(attack.sourceType)}" data-source-key="${escapeHtml(attack.sourceKey)}">Remover</button></article>`;
   }).join('')}</div>`;
 }
 
@@ -423,7 +390,7 @@ function renderSpells(sheet, stats) {
     const canCast = Boolean(spell.castable);
     const ritualAvailable = Boolean(spell.ritualAvailable);
     const canAttack = canCast || ritualAvailable;
-    return `<article class="spell-card"><div class="spell-card-heading"><div><strong>${escapeHtml(spell.name)}${spell.prepared ? ' <span class="spell-tag">Preparada</span>' : ''}${spell.ritual ? ' <span class="spell-tag">Ritual</span>' : ''}</strong><span>${Number(spell.level) === 0 ? 'Truque' : `${spell.level}º nível`} · ${escapeHtml(spell.castingTime)} · ${escapeHtml(spell.range)}</span></div><div class="inline-actions">${canCast ? `<button type="button" class="primary-button compact-button" data-cast-spell="${escapeHtml(spell.key)}">Conjurar</button>` : ''}${ritualAvailable ? `<button type="button" class="secondary-button compact-button" data-cast-ritual="${escapeHtml(spell.key)}">Conjurar ritual</button>` : ''}${canAttack ? `<button type="button" class="secondary-button compact-button" data-add-attack="spell" data-source-key="${escapeHtml(spell.key)}">Adicionar aos ataques</button>` : ''}</div></div><p>${escapeHtml(spell.description)}</p>${spell.damage ? `<small>Dano: ${escapeHtml(spell.damage)} ${escapeHtml((spell.damageTypes || []).join(', '))}</small>` : ''}${!canCast && !ritualAvailable ? '<small class="muted">A magia precisa estar preparada para ser conjurada ou adicionada aos ataques.</small>' : ''}</article>`;
+    return `<article class="spell-card"><div class="spell-card-heading"><div><strong>${escapeHtml(spell.name)}${spell.prepared ? ' <span class="spell-tag">Preparada</span>' : ''}${spell.ritual ? ' <span class="spell-tag">Ritual</span>' : ''}</strong><span>${Number(spell.level) === 0 ? 'Truque' : `${spell.level}º nível`} · ${escapeHtml(spell.castingTime)} · ${escapeHtml(spell.range)}</span></div><div class="inline-actions">${canCast ? `<button type="button" class="primary-button compact-button" data-cast-spell="${escapeHtml(spell.key)}">Conjurar</button>` : ''}${ritualAvailable ? `<button type="button" class="secondary-button compact-button" data-cast-ritual="${escapeHtml(spell.key)}">Conjurar ritual</button>` : ''}${canAttack ? `<button type="button" class="secondary-button compact-button" data-add-attack="spell" data-source-key="${escapeHtml(spell.key)}">Adicionar aos ataques</button>` : ''}</div></div><p>${escapeHtml(spell.description)}</p>${spell.damage ? `<small>Dano: ${escapeHtml(spell.damage)} ${escapeHtml((spell.damageTypes || []).map(displayValue).join(', '))}</small>` : ''}${!canCast && !ritualAvailable ? '<small class="muted">A magia precisa estar preparada para ser conjurada ou adicionada aos ataques.</small>' : ''}</article>`;
   }).join('') || '<div class="sheet-empty-tab">Nenhuma magia registrada.</div>'}</div>`;
 }
 
@@ -445,20 +412,20 @@ function renderEquipment(sheet) {
 }
 function renderItem(item) {
   const details = [];
-  if (item.damageDice) details.push(`Dano ${item.damageDice}${item.damageType ? ` ${item.damageType}` : ''}`);
+  if (item.damageDice) details.push(`Dano ${item.damageDice}${item.damageType ? ` ${displayValue(item.damageType)}` : ''}`);
   if (item.versatileDamage) details.push(`Versátil ${item.versatileDamage}`);
-  if (item.properties?.length) details.push(item.properties.join(', '));
-  if (item.mastery?.length) details.push(`Maestria: ${item.mastery.join(', ')}`);
+  if (item.properties?.length) details.push(item.properties.map(displayValue).join(', '));
+  if (item.mastery?.length) details.push(`Maestria: ${item.mastery.map(displayValue).join(', ')}`);
   if (item.range) details.push(`Alcance ${item.range}`);
   const displayedArmorClass = item.bonusArmorClass ?? item.armorClass;
   if (displayedArmorClass) details.push(`${item.evengadulCustomArmor ? 'Bônus de CA' : 'CA'} ${displayedArmorClass}`);
   const canAddAttack = Boolean(item.key && (item.weapon || item.specialAttacks?.length));
   const canEquip = Boolean(item.key && (item.armor || item.shield));
-  return `<article class="equipment-item-card ${item.equipped ? 'equipped' : ''}"><div><strong>${Number(item.quantity || 1) > 1 ? `${item.quantity}× ` : ''}${escapeHtml(item.name)}</strong><span>${escapeHtml(item.category || '')}${item.equipped ? ' · Equipado' : ''}</span></div>${details.length ? `<p>${escapeHtml(details.join(' · '))}</p>` : ''}${item.description ? `<p class="item-description">${escapeHtml(item.description)}</p>` : ''}<div class="inline-actions">${canEquip ? `<button type="button" class="small-action" data-toggle-equipment="${escapeHtml(item.key)}">${item.equipped ? 'Desequipar' : 'Equipar'}</button>` : ''}${canAddAttack ? `<button type="button" class="small-action" data-add-attack="item" data-source-key="${escapeHtml(item.key)}">Adicionar aos ataques</button>` : ''}</div></article>`;
+  return `<article class="equipment-item-card ${item.equipped ? 'equipped' : ''}"><div><strong>${Number(item.quantity || 1) > 1 ? `${item.quantity}× ` : ''}${escapeHtml(item.name)}</strong><span>${escapeHtml(displayValue(item.category || ''))}${item.equipped ? ' · Equipado' : ''}</span></div>${details.length ? `<p>${escapeHtml(details.join(' · '))}</p>` : ''}${item.description ? `<p class="item-description">${escapeHtml(item.description)}</p>` : ''}<div class="inline-actions">${canEquip ? `<button type="button" class="small-action" data-toggle-equipment="${escapeHtml(item.key)}">${item.equipped ? 'Desequipar' : 'Equipar'}</button>` : ''}${canAddAttack ? `<button type="button" class="small-action" data-add-attack="item" data-source-key="${escapeHtml(item.key)}">Adicionar aos ataques</button>` : ''}</div></article>`;
 }
 function storeOptions(includePlaceholder = true, purchasableOnly = false) { const items = purchasableOnly ? storeItems.filter((item) => item.purchasable && Number(item.valueCp) > 0) : storeItems; return `${includePlaceholder ? '<option value="">Selecione um item</option>' : ''}${items.map((item) => `<option value="${escapeHtml(item.key)}">${escapeHtml(item.name)}${item.purchasable ? ` — ${escapeHtml(currencyPt(item.valueCp))}` : ' — sem preço'}</option>`).join('')}`; }
 function currencyPt(cp) { return formatCurrency(cp); }
-function moneyInput(label, value) { return `<label><span>${label}</span><input name="${label}" type="number" min="0" value="${Number(value || 0)}"></label>`; }
+function moneyInput(label, value) { return `<label><span>${moneyLabels[label] || label}</span><input name="${label}" type="number" min="0" value="${Number(value || 0)}"></label>`; }
 function proficiencyRow(label, values = []) { return `<div class="proficiency-row"><strong>${label}</strong><span>${values?.length ? values.map((value) => escapeHtml(localizeProficiency(value))).join(', ') : '—'}</span></div>`; }
 function localizeProficiency(value) {
   const labels = { light: 'Armaduras leves', medium: 'Armaduras médias', heavy: 'Armaduras pesadas', shields: 'Escudos', simple: 'Armas simples', martial: 'Armas marciais' };
@@ -507,7 +474,7 @@ function renderCharacterCampaignInitiative(encounter) {
 
 function renderCharacterCampaignMessages(campaign) {
   const relevantThreads = (campaign.messageThreads || []).filter((thread) => !thread.characterId || thread.characterId === character.id);
-  const conversations = relevantThreads.length ? relevantThreads.map((thread) => `<article class="campaign-character-thread"><header><strong>${escapeHtml(thread.characterName || 'Conversa da campanha')}</strong></header>${(thread.messages || []).map((message) => `<div class="player-gm-message ${message.fromGm ? 'from-gm' : 'from-player'}"><strong>${message.fromGm ? 'Mestre' : 'Você'}</strong><p>${escapeHtml(message.body)}</p><time>${escapeHtml(message.createdAt)}</time></div>`).join('')}</article>`).join('') : '<p class="muted">Nenhuma mensagem enviada ainda.</p>';
+  const conversations = relevantThreads.length ? relevantThreads.map((thread) => `<article class="campaign-character-thread"><header><strong>${escapeHtml(thread.characterName || 'Conversa da campanha')}</strong></header>${(thread.messages || []).map((message) => `<div class="player-gm-message ${message.fromGm ? 'from-gm' : 'from-player'}"><strong>${message.fromGm ? 'Mestre' : 'Você'}</strong><p>${escapeHtml(message.body)}</p><time datetime="${escapeHtml(message.createdAt || '')}">${escapeHtml(formatDate(message.createdAt))}</time></div>`).join('')}</article>`).join('') : '<p class="muted">Nenhuma mensagem enviada ainda.</p>';
   return `<div class="campaign-panel-heading"><p class="eyebrow">Privado</p><h3>Mensagem ao Mestre</h3></div>
     <div class="campaign-character-thread-list">${conversations}</div>
     <form id="character-campaign-message-form" class="campaign-character-compact-form">
@@ -523,6 +490,10 @@ function renderCharacterCampaignNotes(campaign) {
     <div class="campaign-identity-summary" ${campaign.bannerPath ? `style="--campaign-banner:url('${escapeHtml(campaign.bannerPath)}')"` : ''}>
       <span class="campaign-identity-overlay"></span><div><strong>${escapeHtml(campaign.name)}</strong><small>Nível inicial ${Number(campaign.startingLevel || 1)}</small><p>${escapeHtml(campaign.description || 'Sem descrição.')}</p></div>
     </div>
+    <details class="campaign-player-rules" ${Object.keys(campaign.homebrewRules || {}).length ? '' : 'open'}>
+      <summary>Regras da campanha</summary>
+      ${structuredDataToHtml(campaign.homebrewRules || {}, { emptyMessage: 'Nenhuma regra própria foi cadastrada.' })}
+    </details>
     <form id="character-campaign-notes-form" class="campaign-character-notes-form">
       <textarea name="markdown" rows="18">${escapeHtml(notes.markdown || '')}</textarea>
       <input name="revision" type="hidden" value="${Number(notes.revision || 0)}">
@@ -537,7 +508,7 @@ function renderCharacterCampaignBoard(campaign) {
       <textarea name="body" rows="4" maxlength="4000" placeholder="Publicar no mural" required></textarea>
       <button class="primary-button" type="submit">Publicar</button>
     </form>
-    <div class="campaign-character-board-list">${(campaign.playerBoard || []).length ? campaign.playerBoard.map((post) => `<article><header><strong>${escapeHtml(post.author)}</strong><time>${escapeHtml(post.createdAt)}</time></header><p>${escapeHtml(post.body)}</p></article>`).join('') : '<p class="muted">Nenhuma publicação ainda.</p>'}</div>`;
+    <div class="campaign-character-board-list">${(campaign.playerBoard || []).length ? campaign.playerBoard.map((post) => `<article><header><strong>${escapeHtml(post.author)}</strong><time datetime="${escapeHtml(post.createdAt || '')}">${escapeHtml(formatDate(post.createdAt))}</time></header><p>${escapeHtml(post.body)}</p></article>`).join('') : '<p class="muted">Nenhuma publicação ainda.</p>'}</div>`;
 }
 
 function renderCharacterCampaignView() {

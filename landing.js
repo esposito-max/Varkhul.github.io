@@ -1,3 +1,5 @@
+const LANDING_ASSET_BASE = new URL('.', document.currentScript?.src || window.location.href);
+
 /* =========================================
    1. SISTEMA DE ABAS (FOLDER NAVIGATION)
    ========================================= */
@@ -69,14 +71,14 @@ document.addEventListener("DOMContentLoaded", () => {
     let spellsDictionary = {};
 
     Promise.all([
-        fetch('./lore.json').then(res => res.json()),
-        fetch('./spells.json').then(res => res.json())
+        fetch(new URL('lore.json', LANDING_ASSET_BASE)).then(res => res.json()),
+        fetch(new URL('spells.json', LANDING_ASSET_BASE)).then(res => res.json())
     ])
     .then(([loreData, spellsData]) => {
         loreDictionary = loreData;
         spellsDictionary = spellsData;
     })
-    .catch(error => console.error("Erro ao carregar dicionários JSON:", error));
+    .catch(error => console.error("Erro ao carregar os dados auxiliares:", error));
 
     document.body.addEventListener('mouseover', (e) => {
         const term = e.target.closest('.lore-term, .spell-term');

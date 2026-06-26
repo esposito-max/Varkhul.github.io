@@ -1,6 +1,6 @@
 import {
   consumeOAuthCallback,
-  readAuthSession,
+  getUsableAuthSession,
   signedInDestination,
   signInWithEmail,
   signUpWithEmail,
@@ -88,9 +88,14 @@ form.addEventListener('submit', async (event) => {
 setMode(mode);
 try {
   const oauthSession = consumeOAuthCallback();
-  if (oauthSession) await finishAuthentication(oauthSession);
-  else if (readAuthSession()) {
-    showFeedback('Uma sessão já está ativa. Você pode entrar novamente ou retornar ao painel.', 'success');
+  if (oauthSession) {
+    await finishAuthentication(oauthSession);
+  } else {
+    const activeSession = await getUsableAuthSession();
+    if (activeSession) {
+      showFeedback('Sessão ativa. Abrindo seu painel...', 'success');
+      await finishAuthentication(activeSession);
+    }
   }
 } catch (error) {
   showFeedback(error.message, 'error');

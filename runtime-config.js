@@ -1,12 +1,12 @@
 /*
- * Public browser runtime configuration.
+ * Configuração pública do frontend.
  *
- * Local Python testing at http://127.0.0.1:8000 or http://localhost:8000 uses
- * the same origin, so apiBaseUrl stays empty. GitHub Pages uses the hosted
- * JustRunMy backend.
+ * Em testes locais por http://127.0.0.1:8000 ou http://localhost:8000, o
+ * frontend e a API usam a mesma origem. No GitHub Pages, as chamadas são
+ * direcionadas ao backend hospedado no JustRunMy.
  *
- * This file must never contain SUPABASE_SERVICE_ROLE_KEY, NTFY_TOKEN, or
- * GM_PROMOTION_SECRET.
+ * Nunca coloque SUPABASE_SERVICE_ROLE_KEY, NTFY_TOKEN ou
+ * GM_PROMOTION_SECRET neste arquivo.
  */
 const localFrontendHosts = new Set(['127.0.0.1', 'localhost']);
 

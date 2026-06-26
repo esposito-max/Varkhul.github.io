@@ -1,21 +1,28 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>GM Homepage — Chronicle & Character</title><link rel="stylesheet" href="./styles.css"></head>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Painel do Mestre de Chronicle & Character">
+  <title>Painel do Mestre — Chronicle &amp; Character</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
 <body class="gm-body">
   <header class="gm-header">
-    <a class="gm-brand" href="./dm.html"><img src="./assets/varkhul-mark.png" alt="" width="44" height="52"><span><small>Chronicle &amp; Character</small><strong>Game Master</strong></span></a>
-    <nav class="gm-nav" aria-label="GM navigation"><a data-gm-tab="home" href="./dm.html">Homepage</a><a data-gm-tab="lore" href="./dm-lore.html">Lore</a><a data-gm-tab="campaigns" href="./dm-campaigns.html">Campaigns</a><a data-gm-tab="resources" href="./dm-resources.html">Resources</a></nav>
-    <div class="gm-header-actions"><a class="secondary-button button-link" href="./player.html">Player Side</a><button id="theme-toggle" class="theme-toggle compact" type="button">Use Light Mode</button><button class="secondary-button auth-logout-button" type="button" data-auth-logout>Logout</button></div>
+    <a class="gm-brand" href="./dm.html"><img src="./assets/varkhul-mark.png" alt="" width="44" height="52"><span><small>Chronicle &amp; Character</small><strong>Mestre</strong></span></a>
+    <nav class="gm-nav" aria-label="Navegação do Mestre"><a data-gm-tab="home" href="./dm.html">Início</a><a data-gm-tab="lore" href="./dm-lore.html">Lore</a><a data-gm-tab="campaigns" href="./dm-campaigns.html">Campanhas</a><a data-gm-tab="resources" href="./dm-resources.html">Recursos</a></nav>
+    <div class="gm-header-actions"><a class="secondary-button button-link" href="./player.html">Área do jogador</a><button id="theme-toggle" class="theme-toggle compact" type="button">Usar tema claro</button><button class="secondary-button auth-logout-button" type="button" data-auth-logout>Sair</button></div>
   </header>
   <main class="gm-main">
-    <header class="page-header"><div><p class="eyebrow">GM Workspace</p><h1>Homepage</h1><p class="lead">Campaign activity, unread conversations, and pending decisions.</p></div><a class="primary-button button-link" href="./dm-campaigns.html?create=1">Create Campaign</a></header>
-    <section id="gm-stat-grid" class="gm-stat-grid"><div class="empty-state">Loading dashboard...</div></section>
+    <header class="page-header"><div><p class="eyebrow">Área do Mestre</p><h1>Início</h1><p class="lead">Acompanhe campanhas, conversas não lidas e decisões pendentes.</p></div><a class="primary-button button-link" href="./dm-campaigns.html?create=1">Criar campanha</a></header>
+    <section id="gm-stat-grid" class="gm-stat-grid" aria-live="polite"><div class="empty-state">Carregando painel...</div></section>
     <div class="gm-dashboard-columns">
-      <section class="panel"><div class="section-heading-row"><div><p class="eyebrow">Campaigns</p><h3>Recently updated</h3></div><a href="./dm-campaigns.html">View all</a></div><div id="recent-campaigns"></div></section>
-      <section class="panel"><div class="section-heading-row"><div><p class="eyebrow">Lore</p><h3>Recent documents</h3></div><a href="./dm-lore.html">Open editor</a></div><div id="recent-gm-lore"></div></section>
+      <section class="panel"><div class="section-heading-row"><div><p class="eyebrow">Campanhas</p><h3>Atualizadas recentemente</h3></div><a href="./dm-campaigns.html">Ver todas</a></div><div id="recent-campaigns"></div></section>
+      <section class="panel"><div class="section-heading-row"><div><p class="eyebrow">Lore</p><h3>Documentos recentes</h3></div><a href="./dm-lore.html">Abrir editor</a></div><div id="recent-gm-lore"></div></section>
     </div>
-    <section class="panel"><div class="section-heading-row"><div><p class="eyebrow">Approvals</p><h3>Pending item requests</h3></div></div><div id="dm-request-list"><div class="empty-state">Loading requests...</div></div></section>
+    <section class="panel"><div class="section-heading-row"><div><p class="eyebrow">Aprovações</p><h3>Solicitações de itens pendentes</h3></div></div><div id="dm-request-list" aria-live="polite"><div class="empty-state">Carregando solicitações...</div></div></section>
   </main>
   <script src="./runtime-config.js"></script>
   <script type="module" src="./dm.js"></script>
-</body></html>
+</body>
+</html>

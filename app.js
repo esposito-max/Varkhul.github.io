@@ -1,4 +1,5 @@
 import { authenticatedFetch, initializeLogoutButtons, requireAuthenticatedPage, resolveApiUrl } from './auth-client.js';
+import { displayValue, formatDate, markdownToHtml, structuredDataToHtml } from './gm-common.js';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
 const healthBadge = document.querySelector('#health-badge');
@@ -58,41 +59,6 @@ function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
-function markdownToHtml(value) {
-  const safe = escapeHtml(value).replace(/\r\n?/g, '\n');
-  const lines = safe.split('\n');
-  let html = '';
-  let listOpen = false;
-  const inline = (line) => line
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, href) => {
-      const target = String(href).trim();
-      const lower = target.toLowerCase();
-      const allowed = target.startsWith('/') || target.startsWith('#') || lower.startsWith('https://') || lower.startsWith('http://') || lower.startsWith('mailto:');
-      return allowed ? `<a href="${target}"${lower.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : ''}>${label}</a>` : label;
-    })
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>');
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (/^[-*] /.test(line)) {
-      if (!listOpen) { html += '<ul>'; listOpen = true; }
-      html += `<li>${inline(line.slice(2))}</li>`;
-      continue;
-    }
-    if (listOpen) { html += '</ul>'; listOpen = false; }
-    if (!line) continue;
-    const heading = line.match(/^(#{1,4})\s+(.+)$/);
-    if (heading) {
-      const level = Math.min(6, heading[1].length + 1);
-      html += `<h${level}>${inline(heading[2])}</h${level}>`;
-    } else {
-      html += `<p>${inline(line)}</p>`;
-    }
-  }
-  if (listOpen) html += '</ul>';
-  return html;
-}
 function displayNameFromKey(key, fallback = '—') { return String(key || '').split('|')[0].trim() || fallback; }
 function localizeClassName(name) { return classNamesPtBr[name] || name; }
 function classPaletteStyle(name) {
@@ -102,6 +68,11 @@ function classPaletteStyle(name) {
     `--class-color:${palette[0]}`,
     ...classToneNames.map((tone, index) => `--class-${tone}:${palette[index]}`),
   ].join(';');
+}
+
+function countLabel(count, singular, plural = `${singular}s`) {
+  const value = Number(count || 0);
+  return `${value} ${value === 1 ? singular : plural}`;
 }
 function initializeTheme() {
   const saved = localStorage.getItem('chronicle-theme');
@@ -248,10 +219,6 @@ promotionRequestButton.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
-    console.info('[GM promotion] Backend aceitou a solicitação', {
-      requestTraceId: status.requestTraceId || '',
-      delivery: status.delivery || '',
-    });
     promotionCodeInput.value = '';
     renderPromotionState({ ...status, active: true });
     promotionCodeInput.focus();
@@ -298,7 +265,7 @@ function renderCampaigns() {
     return `<button type="button" class="campaign-card" data-campaign-id="${escapeHtml(campaign.id)}" ${bannerStyle}>
       <span class="campaign-card-overlay"></span><span class="campaign-card-content">
         <span class="eyebrow">Campanha</span><strong>${escapeHtml(campaign.name)}</strong>
-        <small>${campaign.characters.length} personagem(ns) • nível inicial ${campaign.startingLevel}</small>
+        <small>${countLabel(campaign.characters.length, 'personagem', 'personagens')} • nível inicial ${campaign.startingLevel}</small>
       </span></button>`;
   }).join('');
   document.querySelectorAll('[data-campaign-id]').forEach((button) => button.addEventListener('click', () => openCampaign(button.dataset.campaignId)));
@@ -320,23 +287,19 @@ const playerEncounterStatLabels = {
   abilityModifiers: 'Modificadores', abilityScores: 'Atributos', skills: 'Perícias', image: 'Imagem',
 };
 
-function formatPlayerEncounterStat(value) {
-  if (value == null || value === '') return '—';
-  if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
-  if (Array.isArray(value)) return value.map(formatPlayerEncounterStat).join(', ');
-  if (typeof value === 'object') return Object.entries(value).map(([key, item]) => `${key}: ${formatPlayerEncounterStat(item)}`).join(' · ');
-  return String(value);
-}
-
 function playerEncounterStats(state) {
   const stats = state.stats && typeof state.stats === 'object' ? state.stats : {};
-  const rows = Object.entries(stats).filter(([key, value]) => playerEncounterStatLabels[key] && value != null && value !== '').map(([key, value]) => {
-    if (key === 'image' && /^https?:\/\//i.test(String(value))) {
-      return `<span class="initiative-stat"><small>${playerEncounterStatLabels[key]}</small><img src="${escapeHtml(value)}" alt=""></span>`;
-    }
-    return `<span class="initiative-stat"><small>${playerEncounterStatLabels[key]}</small><strong>${escapeHtml(formatPlayerEncounterStat(value))}</strong></span>`;
-  });
-  return rows.length ? `<details class="initiative-stats player-visible-stats"><summary>Informações da criatura</summary><div>${rows.join('')}</div></details>` : '';
+  const rows = Object.entries(stats)
+    .filter(([key, value]) => playerEncounterStatLabels[key] && value != null && value !== '')
+    .map(([key, value]) => {
+      if (key === 'image' && /^https?:\/\//i.test(String(value))) {
+        return `<div><dt>${playerEncounterStatLabels[key]}</dt><dd><img src="${escapeHtml(value)}" alt="Imagem da criatura"></dd></div>`;
+      }
+      return `<div><dt>${playerEncounterStatLabels[key]}</dt><dd>${structuredDataToHtml(value, { emptyMessage: 'Não informado' })}</dd></div>`;
+    });
+  return rows.length
+    ? `<details class="initiative-stats player-visible-stats"><summary>Informações da criatura</summary><dl class="structured-data encounter-stat-details">${rows.join('')}</dl></details>`
+    : '';
 }
 
 function showPlayerTurnNotification(encounter) {
@@ -398,11 +361,21 @@ async function openCampaign(campaignId) {
   try {
     const campaign = await requestJson(`/api/campaigns/${encodeURIComponent(campaignId)}`);
     const characterOptions = campaign.characters?.map((character) => `<option value="${escapeHtml(character.id)}">${escapeHtml(character.name)}</option>`).join('') || '';
-    const conversations = campaign.messageThreads?.length ? campaign.messageThreads.map((thread) => `<article class="player-gm-thread"><header><strong>${escapeHtml(thread.characterName || 'Conversa da campanha')}</strong></header>${thread.messages.map((message) => `<div class="player-gm-message ${message.fromGm ? 'from-gm' : 'from-player'}"><strong>${message.fromGm ? 'Mestre' : 'Você'}</strong><p>${escapeHtml(message.body)}</p><time>${escapeHtml(message.createdAt)}</time></div>`).join('')}</article>`).join('') : '<p class="muted">Nenhuma mensagem enviada ainda.</p>';
+    const conversations = campaign.messageThreads?.length ? campaign.messageThreads.map((thread) => `<article class="player-gm-thread"><header><strong>${escapeHtml(thread.characterName || 'Conversa da campanha')}</strong></header>${thread.messages.map((message) => `<div class="player-gm-message ${message.fromGm ? 'from-gm' : 'from-player'}"><strong>${message.fromGm ? 'Mestre' : 'Você'}</strong><p>${escapeHtml(message.body)}</p><time datetime="${escapeHtml(message.createdAt || '')}">${formatDate(message.createdAt)}</time></div>`).join('')}</article>`).join('') : '<p class="muted">Nenhuma mensagem enviada ainda.</p>';
     openDialog(`<article class="campaign-manager-player">
       <header class="campaign-manager-header" ${campaign.bannerPath ? `style="--campaign-banner:url('${escapeHtml(campaign.bannerPath)}')"` : ''}>
         <div><p class="eyebrow">Campanha</p><h2>${escapeHtml(campaign.name)}</h2><p>${escapeHtml(campaign.description || 'Sem descrição.')}</p></div>
       </header>
+      <section class="panel compact-panel campaign-player-overview">
+        <div class="campaign-player-metadata">
+          <div><span>Nível inicial</span><strong>${Number(campaign.startingLevel || 1)}</strong></div>
+          <div><span>Seus personagens</span><strong>${countLabel(campaign.characters?.length, 'personagem', 'personagens')}</strong></div>
+        </div>
+        <details class="campaign-player-rules" ${Object.keys(campaign.homebrewRules || {}).length ? 'open' : ''}>
+          <summary>Regras próprias da campanha</summary>
+          ${structuredDataToHtml(campaign.homebrewRules || {}, { emptyMessage: 'Nenhuma regra própria cadastrada.' })}
+        </details>
+      </section>
       <section class="panel compact-panel"><div id="player-active-encounter"></div></section>
       <div class="campaign-player-tools">
         <section class="panel compact-panel"><h3>Mensagens com o Mestre</h3><div class="player-gm-thread-list">${conversations}</div>
@@ -411,7 +384,7 @@ async function openCampaign(campaignId) {
         </section>
         <section class="panel compact-panel"><h3>Mural dos Jogadores</h3><p class="muted">Mural textual exclusivo dos jogadores desta campanha.</p>
           <form id="player-board-form" data-campaign-id="${escapeHtml(campaign.id)}"><textarea name="body" rows="3" maxlength="4000" placeholder="Publicar no mural" required></textarea><button class="primary-button" type="submit">Publicar</button></form>
-          <div class="player-board-list">${campaign.playerBoard.length ? campaign.playerBoard.map((post) => `<article><strong>${escapeHtml(post.author)}</strong><time>${escapeHtml(post.createdAt)}</time><p>${escapeHtml(post.body)}</p></article>`).join('') : '<p class="muted">Nenhuma publicação ainda.</p>'}</div>
+          <div class="player-board-list">${campaign.playerBoard.length ? campaign.playerBoard.map((post) => `<article><strong>${escapeHtml(post.author)}</strong><time datetime="${escapeHtml(post.createdAt || '')}">${formatDate(post.createdAt)}</time><p>${escapeHtml(post.body)}</p></article>`).join('') : '<p class="muted">Nenhuma publicação ainda.</p>'}</div>
         </section>
       </div>
       <section class="panel compact-panel campaign-shared-notes"><div class="section-heading-row"><div><p class="eyebrow">Documento compartilhado</p><h3>Anotações da campanha</h3></div><span>Revisão ${Number(campaign.campaignNotes?.revision || 0)}</span></div><div class="campaign-notes-player-layout"><form id="player-campaign-notes-form" data-campaign-id="${escapeHtml(campaign.id)}"><textarea name="markdown" rows="12">${escapeHtml(campaign.campaignNotes?.markdown || '')}</textarea><input name="revision" type="hidden" value="${Number(campaign.campaignNotes?.revision || 0)}"><button class="primary-button" type="submit">Salvar anotações</button><div id="player-notes-feedback"></div></form><article id="player-notes-preview" class="lore-content">${markdownToHtml(campaign.campaignNotes?.markdown || '') || '<p class="muted">Nenhuma anotação ainda.</p>'}</article></div></section>
@@ -479,7 +452,7 @@ function renderQuickResults(items) {
   document.querySelectorAll('[data-result-index]').forEach((button) => button.addEventListener('click', () => openQuickCard(items[Number(button.dataset.resultIndex)])));
 }
 function openQuickCard(item) {
-  openDialog(`<article class="reference-detail-card"><header><p class="eyebrow">${escapeHtml(entityNamesPtBr[item.type] || item.type)}</p><h2>${escapeHtml(item.name)}</h2><div><span>${escapeHtml(item.category || '')}</span><strong>${escapeHtml(item.source || '')}${item.page ? ` p.${escapeHtml(item.page)}` : ''}</strong></div></header><div class="reference-divider"></div><p>${escapeHtml(item.description || 'Sem descrição disponível no catálogo.')}</p></article>`);
+  openDialog(`<article class="reference-detail-card"><header><p class="eyebrow">${escapeHtml(entityNamesPtBr[item.type] || item.type)}</p><h2>${escapeHtml(item.name)}</h2><div><span>${escapeHtml(displayValue(item.category || ''))}</span><strong>${escapeHtml(item.source || '')}${item.page ? ` p.${escapeHtml(item.page)}` : ''}</strong></div></header><div class="reference-divider"></div><p>${escapeHtml(item.description || 'Sem descrição disponível no catálogo.')}</p></article>`);
 }
 
 async function loadHome() {

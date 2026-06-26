@@ -22,10 +22,11 @@ function backendOriginLabel() {
 
 export function safeNextPath(value, fallback = './player.html') {
   const candidate = String(value || '').trim();
-  if (!candidate.startsWith('/') || candidate.startsWith('//')) return fallback;
+  if (!candidate || candidate.startsWith('//')) return fallback;
   try {
-    const origin = globalThis.location?.origin || 'http://localhost';
-    const parsed = new URL(candidate, origin);
+    const base = globalThis.location?.href || 'http://localhost/';
+    const origin = globalThis.location?.origin || new URL(base).origin;
+    const parsed = new URL(candidate, base);
     if (parsed.origin !== origin) return fallback;
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
@@ -38,8 +39,8 @@ export async function loadAuthConfig() {
     configPromise = fetch(resolveApiUrl('/api/auth/config'), { headers: { Accept: 'application/json' } })
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.error || 'Authentication configuration could not be loaded.');
-        if (!payload.configured) throw new Error('Supabase authentication is not configured on this server.');
+        if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar a configuração de autenticação.');
+        if (!payload.configured) throw new Error('A autenticação ainda não foi configurada no servidor.');
         return payload;
       });
   }
@@ -67,7 +68,7 @@ export function storeAuthSession(payload) {
     expiresAt: Date.now() + Math.max(60, expiresIn) * 1000,
     user: payload.user || null,
   };
-  if (!session.accessToken) throw new Error('The authentication provider did not return an access token.');
+  if (!session.accessToken) throw new Error('O provedor de autenticação não retornou um token de acesso.');
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
 }
@@ -87,7 +88,7 @@ async function authRequest(path, options = {}) {
   const response = await fetch(`${config.supabaseUrl}${path}`, options);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.msg || payload.error_description || payload.error || 'Authentication request failed.');
+    throw new Error(payload.msg || payload.error_description || payload.error || 'Não foi possível concluir a autenticação.');
   }
   return payload;
 }
@@ -118,7 +119,7 @@ export async function signUpWithEmail(email, password) {
 
 export async function startDiscordAuth() {
   const config = await loadAuthConfig();
-  if (!config.discordEnabled) throw new Error('Discord authentication is disabled on this server.');
+  if (!config.discordEnabled) throw new Error('O acesso pelo Discord está desabilitado neste servidor.');
   const redirectTo = new URL('login.html', window.location.href).href;
   const url = new URL(`${config.supabaseUrl}/auth/v1/authorize`);
   url.searchParams.set('provider', 'discord');
@@ -139,11 +140,7 @@ export function consumeOAuthCallback() {
     expires_in: hash.get('expires_in'),
     token_type: hash.get('token_type'),
   });
-  history.replaceState(
-  {},
-  document.title,
-  window.location.pathname,
-  );
+  history.replaceState({}, document.title, window.location.pathname);
   return session;
 }
 
@@ -253,7 +250,7 @@ export async function authenticatedFetch(input, options = {}, retry = true) {
   if (!session?.accessToken) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     window.location.assign(`./login.html?returnTo=${encodeURIComponent(returnTo)}`);
-    throw new Error('Authentication required.');
+    throw new Error('É necessário entrar na sua conta.');
   }
   const headers = new Headers(options.headers || {});
   headers.set('Authorization', `Bearer ${session.accessToken}`);
@@ -262,15 +259,14 @@ export async function authenticatedFetch(input, options = {}, retry = true) {
   try {
     response = await fetch(resolvedInput, { ...options, headers });
   } catch (error) {
-    console.error('[Chronicle API] Network failure', {
+    console.error('[API Chronicle] Falha de rede', {
       input,
       resolvedInput,
       backend: backendOriginLabel(),
       error,
     });
     throw new Error(
-      `Não foi possível acessar o backend em ${backendOriginLabel()}. `
-      + 'Verifique web/runtime-config.js e CHRONICLE_CORS_ORIGINS.',
+      'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
     );
   }
   if (response.status === 401 && retry && session.refreshToken) {

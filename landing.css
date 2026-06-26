@@ -885,3 +885,103 @@ ul li {
         gap: 15px;
     }
 }
+/* Standalone species records */
+.race-detail-body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--bg-color, #11100d);
+  color: var(--text-color, #e8e0c8);
+}
+.race-detail-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: .8rem clamp(1rem, 4vw, 3rem);
+  background: color-mix(in srgb, #11100d 92%, transparent);
+  border-bottom: 1px solid #4a3a29;
+  backdrop-filter: blur(12px);
+}
+.race-detail-back,
+.race-detail-topbar .void-entry-button {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: .65rem 1rem;
+  border: 1px solid #8a6a3a;
+  border-radius: .35rem;
+  color: #e8e0c8;
+  text-decoration: none;
+  background: #241d17;
+}
+.race-detail-topbar .void-entry-button {
+  margin: 0;
+  transform: none;
+}
+.race-detail-shell {
+  width: min(72rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 4rem) 0;
+}
+.race-detail-card {
+  overflow: hidden;
+  border: 1px solid #8a6a3a;
+  border-radius: .6rem;
+  background: #1e1a16;
+  box-shadow: 0 1.25rem 3rem rgb(0 0 0 / .35);
+}
+.race-detail-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 22rem);
+  align-items: end;
+  gap: 2rem;
+  padding: clamp(1.5rem, 5vw, 4rem);
+  background: linear-gradient(135deg, #251e18, #11100d);
+  border-bottom: 1px solid #4a3a29;
+}
+.race-detail-hero h1 {
+  margin: .2rem 0 0;
+  font-family: 'Cinzel', serif;
+  font-size: clamp(2.2rem, 7vw, 5rem);
+  color: #bfae68;
+}
+.race-detail-hero img {
+  width: 100%;
+  max-height: 28rem;
+  object-fit: contain;
+  object-position: center bottom;
+}
+.race-detail-eyebrow {
+  margin: 0;
+  color: #a69a7b;
+  text-transform: uppercase;
+  letter-spacing: .16em;
+  font-size: .8rem;
+}
+.race-detail-traits {
+  padding: clamp(1.5rem, 5vw, 4rem);
+}
+.race-detail-traits > h4 {
+  margin-top: 0;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  color: #bfae68;
+}
+.race-detail-traits .traits-descriptions,
+.race-detail-traits li {
+  line-height: 1.75;
+}
+.race-detail-traits .bullet {
+  color: #d6c7a1;
+  font-weight: 700;
+}
+@media (max-width: 48rem) {
+  .race-detail-hero { grid-template-columns: 1fr; }
+  .race-detail-hero img { max-height: 20rem; }
+  .race-detail-topbar { align-items: stretch; }
+  .race-detail-back,
+  .race-detail-topbar .void-entry-button { justify-content: center; }
+}
