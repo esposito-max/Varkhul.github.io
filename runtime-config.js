@@ -9,5 +9,5 @@
  * GM_PROMOTION_SECRET.
  */
 window.CHRONICLE_RUNTIME_CONFIG = Object.freeze({
-  apiBaseUrl: '',
+  apiBaseUrl: 'https://a39965-824e.m.jrnm.app',
 });
