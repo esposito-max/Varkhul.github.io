@@ -2,7 +2,7 @@
   min-height: 100vh;
   background:
     linear-gradient(rgb(17 16 13 / .82), rgb(17 16 13 / .94)),
-    url('/assets/varkhul-background.png') center / cover fixed;
+    url('./assets/varkhul-background.png') center / cover fixed;
 }
 .auth-page-shell {
   width: min(72rem, calc(100% - 2rem));
