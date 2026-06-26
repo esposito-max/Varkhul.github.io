@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Ficha e gerenciador de personagem de Varkhul">
+  <title>Personagem — Chronicle & Character</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="sheet-body">
+  <header class="sheet-topbar player-inner-header">
+    <div class="inner-header-left">
+      <button id="sidebar-toggle" class="secondary-button" type="button" aria-expanded="true" aria-controls="character-sidebar">Ocultar menu</button>
+      <a class="secondary-button button-link" href="/player.html">← Voltar ao início</a>
+    </div>
+    <div class="sheet-topbar-actions">
+      <button id="short-rest" class="secondary-button" type="button" disabled>Descanso curto</button>
+      <button id="long-rest" class="secondary-button" type="button" disabled>Descanso longo</button>
+      <button id="level-up" class="primary-button" type="button">Subir de nível</button>
+      <span id="sheet-save-status" class="status-badge pending">Carregando personagem</span>
+      <button id="theme-toggle" class="theme-toggle compact" type="button" aria-pressed="false">Alternar tema</button>
+      <button class="secondary-button auth-logout-button" type="button" data-auth-logout>Sair</button>
+    </div>
+  </header>
+  <div class="character-view-tabs" role="tablist" aria-label="Visualização do personagem">
+    <button type="button" class="character-view-tab active" data-character-view="sheet" role="tab" aria-selected="true">Ficha do Personagem</button>
+    <button type="button" class="character-view-tab" data-character-view="details" role="tab" aria-selected="false">Detalhes do Personagem</button>
+    <button id="character-campaign-tab" type="button" class="character-view-tab" data-character-view="campaign" role="tab" aria-selected="false" hidden>Campanha</button>
+  </div>
+  <div id="character-layout" class="inner-page-layout character-overlay-layout">
+    <aside id="character-sidebar" class="sidebar player-sidebar inner-sidebar">
+      <div class="sidebar-brand-row"><img class="brand-mark-image" src="/assets/varkhul-mark.png" alt="" width="56" height="64"><div><p class="eyebrow">Varkhul</p></div></div>
+      <nav aria-label="Navegação principal"><a class="nav-link" href="/player.html">Início</a><a class="nav-link active" href="#">Ficha</a><a class="nav-link" href="/lore.html">Lore</a><a class="nav-link" href="/creator.html">Criar personagem</a></nav>
+    </aside>
+    <main id="character-sheet-root" class="character-sheet-page" aria-live="polite">
+      <div class="empty-state">Carregando ficha...</div>
+    </main>
+  </div>
+  <dialog id="sheet-dialog" class="manager-dialog"></dialog>
+  <script src="/runtime-config.js"></script>
+  <script type="module" src="/character.js"></script>
+</body>
+</html>

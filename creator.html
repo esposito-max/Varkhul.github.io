@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Criador de personagens de Varkhul">
+  <title>Criar personagem — Chronicle & Character</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <img class="brand-mark-image" src="/assets/varkhul-mark.png" alt="" width="56" height="64">
+      <div>
+        <p class="eyebrow">Varkhul</p>
+        <h1>Chronicle &amp; Character</h1>
+      </div>
+      <nav aria-label="Navegação principal">
+        <a class="nav-link" href="/player.html">Início</a>
+        <a class="nav-link active" href="/creator.html">Criar personagem</a>
+        <a class="nav-link" href="/#personagens">Personagens</a>
+        <a class="nav-link" href="/#campanhas">Campanhas</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">Alternar tema</button>
+      <button class="secondary-button auth-logout-button" type="button" data-auth-logout>Sair</button>
+    </aside>
+
+    <main class="content creator-content">
+      <header class="page-header creator-header">
+        <div>
+          <p class="eyebrow">Forjar personagem</p>
+          <h2>Criador de personagem</h2>
+          <p class="lead">Em Varkhul, pedir-se-vos-á forjar figuras de fé, dever, culpa, ambição ou saber proibido, postas entre altar, trono e sombras antigas, onde cada escolha medir-vos-á o espírito.</p>
+        </div>
+        <span id="creator-status" class="status-badge pending">Carregando regras</span>
+      </header>
+
+      <div id="creator-blocker" class="alert warning" hidden></div>
+      <div id="creator-success" class="alert success" hidden></div>
+
+      <section id="creator-app" class="creator-layout" hidden>
+        <aside class="step-rail" aria-label="Etapas do criador">
+          <ol id="step-list" class="step-list"></ol>
+        </aside>
+
+        <section class="creator-panel">
+          <div id="step-content"></div>
+          <div id="validation-summary" class="validation-summary" aria-live="polite"></div>
+          <footer class="creator-actions">
+            <button id="previous-step" class="secondary-button" type="button">Voltar</button>
+            <div class="creator-actions-right">
+              <button id="resolve-draft" class="secondary-button" type="button">Verificar escolhas</button>
+              <button id="next-step" class="primary-button" type="button">Continuar</button>
+              <button id="create-character" class="primary-button" type="button" hidden>Criar personagem</button>
+            </div>
+          </footer>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="/runtime-config.js"></script>
+  <script type="module" src="/creator.js"></script>
+</body>
+</html>

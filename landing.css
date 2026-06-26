@@ -1,0 +1,887 @@
+/* =========================================
+   0. VARIABLES & CORE RESETS
+   ========================================= */
+:root {
+    --green-text: #D9EFD7;
+    --red-text: #A82A03;
+    --light-text: #ffffff;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-variant-numeric: slashed-zero;
+    font-feature-settings: 'zero';
+}
+
+body,
+html {
+    min-height: 100vh;
+    background-color: #050505;
+    font-family: "Almendra", serif;
+    color: var(--light-text);
+    background: url('./assets/varkhul-background.png') no-repeat center 17.5%;
+    background-size: cover;
+    background-attachment: fixed;
+}
+
+/* =========================================
+   1. BASE DESKTOP LAYOUT 
+   ========================================= */
+.site-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hero-section {
+    position: relative;
+    margin-top: 10vh;
+    margin-bottom: 50px;
+    text-align: center;
+    width: 90%;
+    max-width: 800px;
+    z-index: 10;
+}
+
+.main-logo {
+    width: clamp(120px, 15vw, 200px);
+    height: auto;
+    filter: drop-shadow(0 0 20px rgba(150, 255, 200, 0.4));
+    margin-bottom: 10px;
+}
+
+.flavor-text {
+    color: var(--red-text);
+    font-family: "Almendra", serif;
+    font-size: clamp(1.2rem, 1.5vw, 1.5rem);
+    font-weight: 700;
+    line-height: 1.4;
+    text-shadow: 0 8px 4.2px rgba(233, 235, 217, 1);
+    max-width: 650px;
+    margin: 0 auto;
+}
+
+/* =========================================
+   2. FOLDER CONTAINER
+   ========================================= */
+.campaign-folder {
+    position: relative;
+    z-index: 5;
+    width: 95%;
+    max-width: 1100px;
+    margin-top: 0;
+    margin-bottom: 100px;
+}
+
+.folder-content {
+    background-image: url('./assets/Page-texture.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-attachment: fixed;
+    min-height: 550px;
+    padding: clamp(20px, 5vw, 60px);
+    border-radius: 0 20px 20px 20px;
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.9), 0 30px 60px rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.folder-content::before,
+.folder-content::after {
+    content: '';
+    position: absolute;
+    top: 10%;
+    bottom: 10%;
+    width: 50px;
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+.folder-content::before {
+    left: 20px;
+    border-left: 2px solid #000;
+}
+
+.folder-content::after {
+    right: 20px;
+    border-right: 2px solid #000;
+}
+
+/* =========================================
+   3. FLAT 2D ROUNDED TABS
+   ========================================= */
+.folder-tabs {
+    display: flex;
+    padding-left: 0;
+    position: relative;
+    z-index: 10;
+    margin-bottom: -1px;
+}
+
+.tab-link {
+    position: relative;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none;
+    padding: 15px 35px 12px 35px;
+    cursor: pointer;
+    font-family: 'Crimson Pro', serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #b0b0b0;
+    text-shadow: 2px 2px 4px rgba(169, 187, 172, 0.8);
+    margin-right: -5px;
+    transition: color 0.3s;
+}
+
+.tab-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    background: #2a2a26 url('./assets/Page-texture.png') no-repeat center top;
+    background-size: cover;
+    border-radius: 18px 18px 0 0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: none;
+    box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5), 3px 0 8px rgba(0, 0, 0, 0.6);
+    filter: brightness(0.4);
+    transition: filter 0.3s, bottom 0.3s;
+}
+
+.tab-link.active {
+    color: #ffffff;
+    z-index: 5;
+}
+
+.tab-link.active::before {
+    filter: brightness(1);
+    bottom: -2px;
+    box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.tab-link:first-child {
+    margin-left: 0;
+    z-index: 4;
+}
+
+.tab-link:nth-child(2) {
+    z-index: 3;
+}
+
+.tab-link:nth-child(3) {
+    z-index: 2;
+}
+
+/* =========================================
+   4. CONTENT & FOOTER
+   ========================================= */
+.tab-content {
+    display: none;
+    color: #ffffff;
+    animation: fadeIn 0.8s ease-out;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-content h2 {
+    font-family: "Almendra", serif;
+    font-size: 1.8rem;
+    margin-bottom: 25px;
+    border-bottom: 2px solid rgba(169, 187, 172, 0.9);
+    padding-bottom: 10px;
+}
+
+.tab-content h3 {
+    font-family: "Almendra", serif;
+    font-size: 1.4rem;
+    margin-bottom: 5px;
+    border-bottom: 2px solid rgba(169, 187, 172, 0.9);
+}
+
+.tab-content p {
+    font-family: "Almendra", serif;
+    font-size: 1.2rem;
+    line-height: 1.8;
+    margin-bottom: 1%;
+    font-weight: 500;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.main-footer {
+    position: fixed;
+    bottom: 30px;
+    width: 100%;
+    text-align: center;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.footer-icon {
+    width: 120px;
+    filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8));
+}
+
+/* =========================================
+   5. FLOATING TOOLTIPS & SPELLS
+   ========================================= */
+.lore-term,
+.spell-term {
+    color: var(--green-text);
+    border-bottom: 2px solid var(--green-text);
+    cursor: help;
+    transition: all 0.2s;
+    font-style: italic;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.lore-term:hover {
+    background-color: rgba(212, 136, 67, 0.1);
+}
+
+.spell-term:hover {
+    background-color: rgba(107, 140, 206, 0.1);
+}
+
+.lore-tooltip {
+    position: absolute;
+    width: 35%;
+    background: #1a1a17 url('box-texture.jpg') center center;
+    border: 1px solid rgba(212, 136, 67, 0.4);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(0, 0, 0, 0.8);
+    padding: 15px;
+    color: #e0e0e0;
+    font-family: 'Merriweather', serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    animation: popIn 0.2s ease-out forwards;
+}
+
+@keyframes popIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) translateX(-50%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) translateX(-50%);
+    }
+}
+
+.tooltip-content {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+.lore-tooltip.pinned {
+    border-color: #8c2a2a;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.9), 0 0 15px rgba(140, 42, 42, 0.4);
+}
+
+.lore-tooltip.nested {
+    width: 20%;
+    border-color: #5a1a1a;
+}
+
+/* Spell Formatting Customizations */
+.lore-tooltip.spell-format {
+    width: 40%;
+    background: #1a1a17 url('box-texture.jpg') center center;
+    border: 1px solid rgba(212, 136, 67, 0.4);
+}
+
+.lore-tooltip.spell-format.nested {
+    width: 25%;
+    border-color: #23304a;
+}
+
+.spell-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid currentColor;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+}
+
+.spell-header h4 {
+    margin: 0;
+    font-family: 'Cinzel', serif;
+    font-size: 1.3rem;
+    margin-bottom: 2px;
+    text-shadow: 0 0 10px currentColor;
+}
+
+.spell-header em {
+    font-size: 0.85rem;
+    color: #a0a0a0;
+    font-style: italic;
+    font-family: 'Merriweather', serif;
+    opacity: 0.8;
+}
+
+.spell-stats {
+    font-size: 0.9rem;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 12px;
+    line-height: 1.4;
+    border: 1px solid rgba(59, 80, 125, 0.3);
+}
+
+.spell-stats p {
+    margin-bottom: 4px;
+}
+
+.spell-stats p:last-child {
+    margin-bottom: 0;
+}
+
+.spell-stats strong {
+    color: #b0b0b0;
+}
+
+/* D&D 5e Spell Card Grid Setup */
+.spell-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+    line-height: 1.4;
+    color: #cccccc;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px 12px;
+    border-radius: 4px;
+}
+
+.stat-col p {
+    margin-bottom: 4px;
+}
+
+.spell-stats-grid strong {
+    color: #e0e0e0;
+    font-weight: 700;
+}
+
+.spell-description {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #cccccc;
+}
+
+.spell-description p {
+    margin-bottom: 12px;
+}
+
+.spell-description ul {
+    margin-left: 20px;
+    margin-bottom: 12px;
+}
+
+.spell-description li {
+    margin-bottom: 10px;
+}
+
+.spell-description p:last-child,
+.spell-description ul:last-child {
+    margin-bottom: 0;
+}
+
+.tooltip-hint {
+    font-family: "Source Code Pro", monospace;
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 12px;
+    text-align: center;
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    padding-top: 8px;
+    opacity: 0.5;
+}
+
+.lore-tooltip.pinned .tooltip-hint {
+    color: #d44;
+}
+
+/* Magic School Color Engine */
+.school-abjuration {
+    color: #4a90e2;
+}
+
+.school-conjuration {
+    color: #F5A623;
+}
+
+.school-divination {
+    color: #D1D1D1;
+}
+
+.school-enchantment {
+    color: #E91E63;
+}
+
+.school-evocation {
+    color: #D0021B;
+}
+
+.school-illusion {
+    color: #9013FE;
+}
+
+.school-necromancy {
+    color: #417505;
+}
+
+.school-transmutation {
+    color: #F8E71C;
+}
+
+.school-universal {
+    color: #ffffff;
+}
+
+.spell-header:has(.school-abjuration) {
+    border-bottom-color: #4a90e255;
+}
+
+.spell-header:has(.school-conjuration) {
+    border-bottom-color: #F5A62355;
+}
+
+.spell-header:has(.school-divination) {
+    border-bottom-color: #D1D1D155;
+}
+
+.spell-header:has(.school-enchantment) {
+    border-bottom-color: #E91E6355;
+}
+
+.spell-header:has(.school-evocation) {
+    border-bottom-color: #D0021B55;
+}
+
+.spell-header:has(.school-illusion) {
+    border-bottom-color: #9013FE55;
+}
+
+.spell-header:has(.school-necromancy) {
+    border-bottom-color: #41750555;
+}
+
+.spell-header:has(.school-transmutation) {
+    border-bottom-color: #F8E71C55;
+}
+
+/* =========================================
+   6. FLOATING ACTIONS (CHRONICLE / CHARACTER)
+   ========================================= */
+.void-entry-wrap {
+    position: fixed;
+    top: 24px;
+    right: 28px;
+    z-index: 250;
+}
+
+.void-entry-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.75rem 1.35rem;
+    border: 1px solid rgba(217, 239, 215, .72);
+    border-radius: 999px;
+    color: #d9efd7;
+    background: rgba(5, 5, 5, .82);
+    box-shadow: 0 0 22px rgba(168, 42, 3, .28);
+    font: 700 1rem "Almendra", serif;
+    letter-spacing: .04em;
+    text-decoration: none;
+    backdrop-filter: blur(8px);
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.void-entry-button:hover,
+.void-entry-button:focus-visible {
+    transform: translateY(-2px);
+    border-color: #a82a03;
+    box-shadow: 0 0 28px rgba(168, 42, 3, .52);
+    outline: none;
+}
+
+/* =========================================
+   7. NESTED SUB-TABS (SUB-ABAS ANINHADAS)
+   ========================================= */
+.sub-tab-container {
+    display: flex;
+    justify-content: flex-start;
+    gap: 15px;
+    margin: -10px -10px 20px -10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(169, 187, 172, 0.4);
+}
+
+.sub-tab-item {
+    background: radial-gradient(ellipse at bottom, rgba(92, 107, 93, 0.25) 0%, transparent 70%);
+    border: none;
+    color: #b0b0b0;
+    font-family: "Almendra", serif;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 8px 16px;
+    position: relative;
+    border-radius: 8px;
+}
+
+.sub-tab-item:hover {
+    background: radial-gradient(ellipse at bottom, rgba(92, 107, 93, 0.4) 0%, transparent 75%);
+    color: #e0e0e0;
+}
+
+.sub-tab-item.active {
+    background: radial-gradient(ellipse at bottom, rgba(92, 107, 93, 0.6) 0%, transparent 80%);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.sub-tab-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -11px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: #e0e0e0;
+}
+
+.sub-content {
+    display: none;
+}
+
+.sub-content.active {
+    display: block;
+    animation: fadeIn 0.4s ease;
+}
+
+/* =========================================
+   8. RACE PORTRAITS & LAYOUT
+   ========================================= */
+.race-entry {
+    margin-bottom: 40px;
+}
+
+.race-entry::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.race-portrait {
+    float: right;
+    width: 35%;
+    max-width: 350px;
+    height: auto;
+    margin-left: 25px;
+    margin-bottom: 15px;
+}
+
+/* =========================================
+   9. BACKGROUNDS LAYOUTS (LEGACY & FIGMA GRID)
+   ========================================= */
+
+/* Legacy Homebrewery Background Layout Rules */
+.bleed-wrapper {
+    width: 100%;
+    overflow-x: hidden;
+    padding: 0 40px;
+    margin: 0 -40px;
+    position: relative;
+}
+
+.origin {
+    --heightpx: 290px;
+    display: block;
+    height: var(--heightpx);
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+.origin img {
+    position: absolute;
+    width: 100%;
+    height: calc(var(--heightpx) - 22px);
+    top: 0;
+    left: 0;
+    object-fit: cover;
+    z-index: -2;
+}
+
+.origin+h3 {
+    position: relative;
+    top: -54px;
+    margin-bottom: -35px;
+    font-size: 23px;
+    font-family: 'Cinzel', serif;
+    color: #8c2a2a;
+    text-align: center;
+    border: none;
+    text-shadow: 0 0 3px rgba(247, 247, 247, 0.5), 0 0 10px rgba(247, 247, 247, 0.8);
+    z-index: 10;
+}
+
+.origin+h3::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background-size: 100%;
+    background-image: url('https://i.imgur.com/KixYKcX.png');
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Modern Figma Grid Layout Rules */
+.backgrounds-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 40px;
+    width: 100%;
+    padding: 20px 0;
+}
+
+.origin-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+@media (max-width: 950px) {
+    .origin-card:not(:first-of-type) { margin-top: 50px; }
+    .origin-card:not(:first-of-type)::before {
+        content: '';
+        display: block;
+        width: 100%;
+        height: 10px;
+        margin-bottom: 40px;
+    }
+}
+
+.origin-image-box {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    margin-bottom: 20px;
+}
+
+.origin-image-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.origin-title {
+    font-family: "Almendra", serif;
+    font-size: 1.5rem;
+    color: #ffffff;
+    margin-bottom: 15px;
+    border: none !important;
+    text-align: left;
+    font-weight: 700;
+}
+
+.origin-body {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 20px;
+    font-family: "Almendra", serif;
+}
+
+.origin-stats {
+    font-size: 1.05rem;
+    line-height: 1.5;
+    color: #e0e0e0;
+}
+
+.origin-stats p {
+    margin-bottom: 8px;
+    font-size: 1.05rem !important;
+}
+
+.origin-stats strong {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.origin-flavor {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: #cccccc;
+    text-align: justify;
+}
+
+.origin-flavor p {
+    font-size: 1.05rem !important;
+    font-weight: 400;
+}
+
+/* =========================================
+   10. MISCELLANEOUS RULES
+   ========================================= */
+.bullet {
+    font-weight: 900;
+    font-size: 1rem;
+}
+
+.traits {
+    margin-bottom: 2%;
+}
+
+ul li {
+    margin-bottom: 1%;
+}
+
+.race {
+    color: var(--red-text);
+    font-family: 'Cinzel', serif;
+    font-size: 1.4rem;
+    text-shadow: 2px 4px 8px rgba(233, 235, 217, 1);
+}
+
+.race a {
+    color: var(--red-text);
+    font-family: inherit;
+    font-size: inherit;
+    text-decoration: none;
+    cursor: context-menu;
+}
+
+.traits p {
+    font-size: 1rem;
+}
+
+.traits h4 {
+    font-size: 1.1rem;
+}
+
+/* =========================================
+   11. MEDIA QUERIES (RESPONSIVENESS)
+   ========================================= */
+@media (max-height: 850px) and (min-width: 850px) {
+    .campaign-folder {
+        margin-top: 65vh;
+    }
+}
+
+@media (max-width: 850px) {
+    .site-wrapper {
+        background-position: center 2%;
+    }
+
+    .hero-section {
+        top: 2%;
+        transform: translate(-50%, 0);
+    }
+
+    .campaign-folder {
+        margin-top: 45vh;
+        width: 96%;
+    }
+
+    .folder-tabs {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        padding-left: 0;
+        width: 100%;
+        margin-bottom: -2px;
+    }
+
+    .tab-link {
+        flex: 1 1 0;
+        font-size: 0.75rem;
+        padding: 10px 4px 12px 4px;
+        white-space: normal;
+        line-height: 1.2;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 52px;
+        margin-right: -4px;
+    }
+
+    .tab-link:last-child {
+        margin-right: 0;
+    }
+
+    .tab-link::before {
+        border-radius: 12px 12px 0 0;
+    }
+
+    .tab-link.active::before {
+        bottom: -4px;
+    }
+
+    .race-portrait {
+        float: none;
+        display: block;
+        width: 80%;
+        margin: 0 auto 20px auto;
+    }
+}
+
+@media (max-width: 700px) {
+    .void-entry-wrap {
+        top: 12px;
+        right: 12px;
+    }
+
+    .void-entry-button {
+        min-height: 42px;
+        padding: .62rem 1rem;
+        font-size: .9rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .origin-body {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+}

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Painel do jogador do Chronicle & Character para Varkhul">
+  <title>Chronicle & Character</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="player-home-body">
+  <header class="player-header-nav">
+    <div class="player-welcome-block">
+      <p class="eyebrow">Chronicle &amp; Character</p>
+      <h1 id="player-welcome">Bem-vindo a Varkhul</h1>
+      <span id="health-badge" class="status-badge pending">Carregando painel</span>
+    </div>
+    <section class="header-quick-consult" aria-labelledby="quick-consult-title">
+      <label id="quick-consult-title" for="quick-search-input">Consulta Rápida</label>
+      <form id="quick-search-form" class="quick-search-form" role="search">
+        <input id="quick-search-input" type="search" minlength="2" placeholder="Pesquisar regra, item, magia..." aria-label="Consulta rápida" required>
+        <button class="primary-button" type="submit">Pesquisar</button>
+      </form>
+      <div id="quick-search-results" class="quick-search-results header-search-results" aria-live="polite"></div>
+    </section>
+  </header>
+
+  <div class="player-below-header">
+    <aside class="sidebar player-sidebar home-sidebar">
+      <div class="sidebar-brand-row">
+        <img class="brand-mark-image" src="/assets/varkhul-mark.png" alt="" width="56" height="64">
+        <div><p class="eyebrow">Varkhul</p></div>
+      </div>
+      <nav aria-label="Navegação principal">
+        <a class="nav-link active" href="/player.html">Início</a>
+        <a class="nav-link" href="#personagens">Personagens</a>
+        <a class="nav-link" href="#campanhas">Campanhas</a>
+        <a class="nav-link" href="/lore.html">Lore</a>
+        <a class="nav-link" href="/creator.html">Criar personagem</a>
+      </nav>
+
+      <section class="sidebar-gm-promotion" aria-labelledby="gm-promotion-title">
+        <p class="eyebrow">Acesso de Mestre</p>
+        <h2 id="gm-promotion-title">Promover esta conta</h2>
+        <p>Solicite um código ao dispositivo autorizador. Ele expira após 5 minutos.</p>
+        <button id="gm-promotion-request" class="secondary-button" type="button">Solicitar código</button>
+        <form id="gm-promotion-form">
+          <label for="gm-promotion-code">Código de 8 dígitos</label>
+          <div class="sidebar-code-row">
+            <input id="gm-promotion-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" minlength="8" maxlength="8" pattern="[0-9]{8}" placeholder="00000000" disabled required>
+            <button id="gm-promotion-confirm" class="icosahedron-button" type="submit" aria-label="Confirmar promoção" title="Confirmar promoção" disabled>
+              <svg viewBox="0 0 64 64" role="img" aria-hidden="true">
+                <path d="M32 4 56 20 50 50 32 60 14 50 8 20Z"/>
+                <path d="m19 33 9 9 18-21"/>
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div id="gm-promotion-feedback" class="sidebar-feedback" aria-live="polite"></div>
+      </section>
+
+      <form id="campaign-code-form" class="sidebar-campaign-join" aria-label="Participar de campanha">
+        <label for="campaign-code">Participar de campanha</label>
+        <div class="sidebar-code-row">
+          <input id="campaign-code" name="joinCode" type="text" minlength="13" maxlength="13" pattern="[A-Za-z0-9]{13}" title="Use exatamente 13 letras e números" autocomplete="off" placeholder="Código de 13 caracteres" required>
+          <button class="icosahedron-button" type="submit" aria-label="Confirmar código da campanha" title="Confirmar código">
+            <svg viewBox="0 0 64 64" role="img" aria-hidden="true">
+              <path d="M32 4 56 20 50 50 32 60 14 50 8 20Z"/>
+              <path d="m32 4-9 22 9 34 9-34Zm-24 16 15 6-9 24m42-30-15 6 9 24M23 26h18L14 50h36Z"/>
+            </svg>
+          </button>
+        </div>
+        <div id="campaign-feedback" class="sidebar-feedback" aria-live="polite"></div>
+      </form>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">Alternar tema</button>
+      <button class="secondary-button auth-logout-button" type="button" data-auth-logout>Sair</button>
+    </aside>
+
+    <main class="content player-home ordered-player-home">
+      <div class="home-primary-row">
+        <section class="home-section recent-lore-home" aria-labelledby="recent-lore-title">
+          <div class="section-heading-row">
+            <div><p class="eyebrow">Lore</p><h3 id="recent-lore-title">Lore visitada recentemente</h3></div>
+            <a class="secondary-button button-link" href="/lore.html">Abrir arquivo</a>
+          </div>
+          <div id="recent-lore-list" class="recent-lore-list"><div class="empty-state">Carregando histórico...</div></div>
+        </section>
+
+        <section id="personagens" class="home-section characters-home" aria-labelledby="characters-title">
+          <div class="section-heading-row">
+            <div><p class="eyebrow">Personagens</p><h3 id="characters-title">Meus Personagens</h3></div>
+            <a class="secondary-button button-link" href="/creator.html">Novo personagem</a>
+          </div>
+          <div id="character-grid" class="character-card-grid" aria-live="polite">
+            <div class="empty-state">Carregando personagens...</div>
+          </div>
+        </section>
+      </div>
+
+      <section id="campanhas" class="home-section campaigns-home" aria-labelledby="campaigns-title">
+        <div class="section-heading-row"><div><p class="eyebrow">Campanhas</p><h3 id="campaigns-title">Minhas Campanhas</h3></div></div>
+        <div id="campaign-list" class="campaign-card-grid"><div class="empty-state">Carregando campanhas...</div></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="home-dialog" class="home-dialog">
+    <div id="home-dialog-content"></div>
+    <form method="dialog" class="dialog-close-row"><button class="secondary-button" type="submit">Fechar</button></form>
+  </dialog>
+  <script src="/runtime-config.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
