@@ -20,7 +20,7 @@ function backendOriginLabel() {
   return baseUrl || globalThis.location?.origin || 'backend configurado';
 }
 
-export function safeNextPath(value, fallback = '/player.html') {
+export function safeNextPath(value, fallback = './player.html') {
   const candidate = String(value || '').trim();
   if (!candidate.startsWith('/') || candidate.startsWith('//')) return fallback;
   try {
@@ -179,10 +179,17 @@ export async function getProfileRole(session = readAuthSession()) {
 
 export async function signedInDestination(session = readAuthSession()) {
   const role = await getProfileRole(session);
-  const fallback = role === 'dm' ? '/dm.html' : '/player.html';
-  const requested = safeNextPath(new URLSearchParams(window.location.search).get('returnTo'), fallback);
-  if (role !== 'dm' && requested.startsWith('/dm')) return fallback;
-  if (requested === '/login.html') return fallback;
+  const fallback = role === 'dm' ? './dm.html' : './player.html';
+  const requested = safeNextPath(
+    new URLSearchParams(window.location.search).get('returnTo'),
+    fallback,
+  );
+  const destination = new URL(requested, window.location.href);
+  const pageName = destination.pathname.split('/').pop() || '';
+  if (role !== 'dm' && (pageName === 'dm.html' || pageName.startsWith('dm-'))) {
+    return fallback;
+  }
+  if (pageName === 'login.html') return fallback;
   return requested;
 }
 
@@ -212,7 +219,7 @@ export function initializeLogoutButtons(selector = '[data-auth-logout]') {
       try {
         await signOut();
       } finally {
-        window.location.assign('/index.html');
+        window.location.assign('./index.html');
       }
     });
   });
@@ -245,7 +252,7 @@ export async function authenticatedFetch(input, options = {}, retry = true) {
   const session = await getUsableAuthSession();
   if (!session?.accessToken) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
-    window.location.assign(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
+    window.location.assign(`./login.html?returnTo=${encodeURIComponent(returnTo)}`);
     throw new Error('Authentication required.');
   }
   const headers = new Headers(options.headers || {});
@@ -273,7 +280,7 @@ export async function authenticatedFetch(input, options = {}, retry = true) {
   if (response.status === 401) {
     clearAuthSession();
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
-    window.location.assign(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
+    window.location.assign(`./login.html?returnTo=${encodeURIComponent(returnTo)}`);
   }
   return response;
 }
@@ -282,13 +289,13 @@ export async function requireAuthenticatedPage(expectedRole = null) {
   const session = await getUsableAuthSession();
   if (!session) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
-    window.location.replace(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
+    window.location.replace(`./login.html?returnTo=${encodeURIComponent(returnTo)}`);
     return null;
   }
   if (expectedRole) {
     const role = await getProfileRole(session);
     if (role !== expectedRole) {
-      window.location.replace(role === 'dm' ? 'dm.html' : 'player.html');
+      window.location.replace(role === 'dm' ? './dm.html' : './player.html');
       return null;
     }
   }

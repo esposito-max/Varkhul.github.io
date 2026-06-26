@@ -1,13 +1,17 @@
 /*
  * Public browser runtime configuration.
  *
- * When the frontend and Python API use different hosts, set apiBaseUrl to the
- * public HTTPS address of the Python backend, without a trailing slash.
- * Example: https://your-app.justrunmy.app
+ * Local Python testing at http://127.0.0.1:8000 or http://localhost:8000 uses
+ * the same origin, so apiBaseUrl stays empty. GitHub Pages uses the hosted
+ * JustRunMy backend.
  *
  * This file must never contain SUPABASE_SERVICE_ROLE_KEY, NTFY_TOKEN, or
  * GM_PROMOTION_SECRET.
  */
+const localFrontendHosts = new Set(['127.0.0.1', 'localhost']);
+
 window.CHRONICLE_RUNTIME_CONFIG = Object.freeze({
-  apiBaseUrl: 'https://a39965-824e.m.jrnm.app',
+  apiBaseUrl: localFrontendHosts.has(window.location.hostname)
+    ? ''
+    : 'https://a39965-824e.m.jrnm.app',
 });

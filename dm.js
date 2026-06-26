@@ -38,9 +38,9 @@ async function boot() {
   try {
     const [dashboard] = await Promise.all([requestJson('/api/dm/dashboard'), loadRequests()]);
     statGrid.innerHTML = [
-      statCard('Campaigns', dashboard.campaignCount, '/dm-campaigns.html'),
-      statCard('Active Encounters', dashboard.activeEncounterCount, '/dm-campaigns.html'),
-      statCard('Unread Messages', dashboard.unreadMessageCount, '/dm-campaigns.html'),
+      statCard('Campaigns', dashboard.campaignCount, './dm-campaigns.html'),
+      statCard('Active Encounters', dashboard.activeEncounterCount, './dm-campaigns.html'),
+      statCard('Unread Messages', dashboard.unreadMessageCount, './dm-campaigns.html'),
       statCard('Pending Requests', dashboard.pendingItemRequestCount, '#dm-request-list'),
     ].join('');
     recentCampaigns.innerHTML = dashboard.recentCampaigns?.length ? dashboard.recentCampaigns.map((item) => `<a class="gm-list-row" href="./dm-campaign.html?id=${item.id}"><strong>${escapeHtml(item.name)}</strong><small>${formatDate(item.updated_at)}</small></a>`).join('') : '<div class="empty-state">No campaigns yet.</div>';

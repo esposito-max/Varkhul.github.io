@@ -280,7 +280,7 @@ promotionForm.addEventListener('submit', async (event) => {
     });
     clearPromotionCountdown();
     promotionFeedback.textContent = 'Conta promovida. Abrindo o painel do Mestre...';
-    window.location.assign('/dm.html');
+    window.location.assign('./dm.html');
   } catch (error) {
     promotionFeedback.textContent = error.message;
     promotionConfirmButton.disabled = false;

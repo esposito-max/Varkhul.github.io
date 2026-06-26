@@ -39,7 +39,7 @@ form.addEventListener('submit', async (event) => {
   submit.disabled = true;
   try {
     const campaign = await requestJson('/api/dm/campaigns', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: data.get('name'), startingLevel: Number(data.get('startingLevel')), description: data.get('description'), homebrewRules: rules, bannerPath: data.get('bannerPath') }) });
-    location.href = `/dm-campaign.html?id=${campaign.id}`;
+    location.href = `./dm-campaign.html?id=${campaign.id}`;
   } catch (error) { feedback.innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`; submit.disabled = false; }
 });
 

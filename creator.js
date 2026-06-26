@@ -907,7 +907,7 @@ createButton.addEventListener('click', async () => {
     });
     successBox.hidden = false;
     successBox.textContent = `${payload.character.name} foi criado. Abrindo a ficha...`;
-    window.location.assign(`/character.html?id=${encodeURIComponent(payload.character.id)}`);
+    window.location.assign(`./character.html?id=${encodeURIComponent(payload.character.id)}`);
     return;
   } catch (error) {
     const errors = error.payload?.errors || [error.message];
