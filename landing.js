@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let spellsDictionary = {};
 
     Promise.all([
-        fetch('/varkhul-start-lore.json').then(res => res.json()),
+        fetch('/lore.json').then(res => res.json()),
         fetch('/varkhul-start-spells.json').then(res => res.json())
     ])
     .then(([loreData, spellsData]) => {
