@@ -133,7 +133,7 @@ function openDialog(html) {
 
 function renderCharacters() {
   if (!characters.length) {
-    characterGrid.innerHTML = `<div class="empty-state character-empty"><h4>Nenhum personagem criado</h4><p>Todo personagem começa no nível 1 e evolui pela própria ficha.</p><a class="primary-button button-link" href="/creator.html">Criar primeiro personagem</a></div>`;
+    characterGrid.innerHTML = `<div class="empty-state character-empty"><h4>Nenhum personagem criado</h4><p>Todo personagem começa no nível 1 e evolui pela própria ficha.</p><a class="primary-button button-link" href="./creator.html">Criar primeiro personagem</a></div>`;
     return;
   }
   characterGrid.innerHTML = characters.map((character) => {
@@ -150,7 +150,7 @@ function renderCharacters() {
     const currentHp = Number(playState.currentHp ?? playStats.currentHp ?? maxHp);
     const campaignLocked = Boolean(character.campaign);
     return `<article class="player-character-card" style="${classPaletteStyle(rawClassName)}">
-      <a class="character-card-link" href="/character.html?id=${encodeURIComponent(character.id)}" aria-label="Abrir ${escapeHtml(character.name)}">
+      <a class="character-card-link" href="./character.html?id=${encodeURIComponent(character.id)}" aria-label="Abrir ${escapeHtml(character.name)}">
         <div class="character-card-body"><h4 class="character-card-name">${escapeHtml(character.name)}</h4><p class="character-card-species">${escapeHtml(species)}</p>
           <div class="character-card-hp" aria-label="Pontos de vida"><span>${currentHp || '—'}</span><b>/</b><span>${maxHp || '—'}</span></div>
           <div class="character-card-meta"><strong>${escapeHtml(className)}</strong><span>${escapeHtml(subclass || '—')}</span><em>${character.level}</em></div>
@@ -309,7 +309,7 @@ function renderRecentLore(items) {
     recentLoreList.innerHTML = '<div class="empty-state">Nenhuma página de lore foi visitada ainda.</div>';
     return;
   }
-  recentLoreList.innerHTML = items.map((item) => `<a class="recent-lore-card" href="/lore.html?slug=${encodeURIComponent(item.slug)}">
+  recentLoreList.innerHTML = items.map((item) => `<a class="recent-lore-card" href="./lore.html?slug=${encodeURIComponent(item.slug)}">
     <span class="eyebrow">${escapeHtml(item.category || 'Lore')}</span><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.excerpt || '')}</p>
   </a>`).join('');
 }

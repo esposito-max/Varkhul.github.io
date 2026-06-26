@@ -43,8 +43,8 @@ async function boot() {
       statCard('Unread Messages', dashboard.unreadMessageCount, '/dm-campaigns.html'),
       statCard('Pending Requests', dashboard.pendingItemRequestCount, '#dm-request-list'),
     ].join('');
-    recentCampaigns.innerHTML = dashboard.recentCampaigns?.length ? dashboard.recentCampaigns.map((item) => `<a class="gm-list-row" href="/dm-campaign.html?id=${item.id}"><strong>${escapeHtml(item.name)}</strong><small>${formatDate(item.updated_at)}</small></a>`).join('') : '<div class="empty-state">No campaigns yet.</div>';
-    recentLore.innerHTML = dashboard.recentLore?.length ? dashboard.recentLore.map((item) => `<a class="gm-list-row" href="/dm-lore.html?fileId=${encodeURIComponent(item.file_id || '')}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.lore_scope)} · ${formatDate(item.updated_at)}</small></a>`).join('') : '<div class="empty-state">No lore documents yet.</div>';
+    recentCampaigns.innerHTML = dashboard.recentCampaigns?.length ? dashboard.recentCampaigns.map((item) => `<a class="gm-list-row" href="./dm-campaign.html?id=${item.id}"><strong>${escapeHtml(item.name)}</strong><small>${formatDate(item.updated_at)}</small></a>`).join('') : '<div class="empty-state">No campaigns yet.</div>';
+    recentLore.innerHTML = dashboard.recentLore?.length ? dashboard.recentLore.map((item) => `<a class="gm-list-row" href="./dm-lore.html?fileId=${encodeURIComponent(item.file_id || '')}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.lore_scope)} · ${formatDate(item.updated_at)}</small></a>`).join('') : '<div class="empty-state">No lore documents yet.</div>';
   } catch (error) {
     statGrid.innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`;
   }

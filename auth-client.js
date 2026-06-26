@@ -104,7 +104,7 @@ export async function signInWithEmail(email, password) {
 
 export async function signUpWithEmail(email, password) {
   const config = await loadAuthConfig();
-  const redirectTo = `${window.location.origin}/login.html`;
+  const redirectTo = new URL('login.html', window.location.href).href;
   const payload = await authRequest(`/auth/v1/signup?redirect_to=${encodeURIComponent(redirectTo)}`, {
     method: 'POST',
     headers: authHeaders(config),
@@ -119,7 +119,7 @@ export async function signUpWithEmail(email, password) {
 export async function startDiscordAuth() {
   const config = await loadAuthConfig();
   if (!config.discordEnabled) throw new Error('Discord authentication is disabled on this server.');
-  const redirectTo = `${window.location.origin}/login.html`;
+  const redirectTo = new URL('login.html', window.location.href).href;
   const url = new URL(`${config.supabaseUrl}/auth/v1/authorize`);
   url.searchParams.set('provider', 'discord');
   url.searchParams.set('redirect_to', redirectTo);
@@ -139,7 +139,11 @@ export function consumeOAuthCallback() {
     expires_in: hash.get('expires_in'),
     token_type: hash.get('token_type'),
   });
-  history.replaceState({}, document.title, '/login.html');
+  history.replaceState(
+  {},
+  document.title,
+  window.location.pathname,
+  );
   return session;
 }
 
@@ -284,7 +288,7 @@ export async function requireAuthenticatedPage(expectedRole = null) {
   if (expectedRole) {
     const role = await getProfileRole(session);
     if (role !== expectedRole) {
-      window.location.replace(role === 'dm' ? '/dm.html' : '/player.html');
+      window.location.replace(role === 'dm' ? 'dm.html' : 'player.html');
       return null;
     }
   }

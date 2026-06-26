@@ -137,7 +137,7 @@ function renderNotes() {
 }
 
 function renderLore() {
-  return `<section data-campaign-panel="lore" class="gm-campaign-panel" hidden><div class="panel"><p class="eyebrow">Campaign Lore</p><h3>Publish lore for ${escapeHtml(campaign.name)}</h3><p>Create or upload a Markdown document, select <strong>Campaign Lore</strong>, choose this campaign, and optionally insert its link into Campaign Notes.</p><a class="primary-button button-link" href="/dm-lore.html">Open Lore Editor</a></div></section>`;
+  return `<section data-campaign-panel="lore" class="gm-campaign-panel" hidden><div class="panel"><p class="eyebrow">Campaign Lore</p><h3>Publish lore for ${escapeHtml(campaign.name)}</h3><p>Create or upload a Markdown document, select <strong>Campaign Lore</strong>, choose this campaign, and optionally insert its link into Campaign Notes.</p><a class="primary-button button-link" href="./dm-lore.html">Open Lore Editor</a></div></section>`;
 }
 
 function renderRequests() {
