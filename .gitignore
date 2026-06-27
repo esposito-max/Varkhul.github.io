@@ -41,3 +41,6 @@
 !dm-resources.js
 !dm.html
 !campaign-rules.js
+!data-client.js
+!sw.js
+!realtime-client.js
