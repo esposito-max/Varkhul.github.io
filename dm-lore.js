@@ -1,4 +1,5 @@
-import { downloadMarkdown, escapeHtml, initializeGmShell, markdownToHtml, requestJson } from './gm-common.js';
+import { cachedRequestJson, downloadMarkdown, escapeHtml, initializeGmShell, markdownToHtml, requestJson } from './gm-common.js';
+import { invalidateApiCache } from './data-client.js';
 
 const list = document.querySelector('#gm-lore-list');
 const editor = document.querySelector('#markdown-editor');
@@ -68,7 +69,8 @@ async function saveLore(payload) {
     workingName.value = item.name;
     workingFileId.value = item.fileId;
     feedback.innerHTML = `<div class="alert success">${item.scope === 'personal' ? 'Lore pessoal salva.' : 'Lore publicada.'}</div>`;
-    await loadLibrary();
+    await invalidateApiCache({ tags: ['dm-lore', 'player-lore', 'player-home', 'dm-home'] });
+    await loadLibrary({ forceRefresh: true });
     return item;
   } catch (error) {
     feedback.innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`;
@@ -152,10 +154,15 @@ function renderLibrary() {
   });
 }
 
-async function loadLibrary() {
+async function loadLibrary({ forceRefresh = false } = {}) {
   const q = document.querySelector('#gm-lore-search').value.trim();
   const scope = document.querySelector('#gm-lore-scope').value;
-  const payload = await requestJson(`/api/dm/lore?q=${encodeURIComponent(q)}&scope=${encodeURIComponent(scope)}`);
+  const payload = await cachedRequestJson(`/api/dm/lore?q=${encodeURIComponent(q)}&scope=${encodeURIComponent(scope)}`, {
+    freshForMs: 30_000,
+    staleForMs: 24 * 60 * 60 * 1000,
+    forceRefresh,
+    tags: ['dm-lore'],
+  });
   library = payload.items || [];
   renderLibrary();
 }
@@ -170,7 +177,10 @@ document.querySelector('#gm-lore-search-form').addEventListener('submit', (event
 async function boot() {
   if (!await initializeGmShell('lore')) return;
   try {
-    const [campaignPayload] = await Promise.all([requestJson('/api/dm/campaigns'), loadLibrary()]);
+    const [campaignPayload] = await Promise.all([
+      cachedRequestJson('/api/dm/campaigns', { freshForMs: 30_000, staleForMs: 24 * 60 * 60 * 1000, tags: ['dm-campaigns'] }),
+      loadLibrary(),
+    ]);
     campaigns = campaignPayload.items || [];
     publishForm.elements.campaignId.innerHTML = '<option value="">Selecione uma campanha</option>' + campaigns.map((campaign) => `<option value="${escapeHtml(campaign.id)}">${escapeHtml(campaign.name)}</option>`).join('');
     const requested = new URLSearchParams(location.search).get('fileId');

@@ -39,6 +39,10 @@ function openSubTab(evt, subTabName) {
    3. SISTEMA DE TOOLTIPS DINÂMICOS (LORE & SPELLS)
    ========================================= */
 document.addEventListener("DOMContentLoaded", () => {
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
     const voidEntryButton = document.querySelector('.void-entry-button');
 
     voidEntryButton?.addEventListener('click', async (event) => {
@@ -46,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
         voidEntryButton.setAttribute('aria-busy', 'true');
 
         try {
-            const { getProfileRole, getUsableAuthSession } = await import('./auth-client.js');
+            const { getUsableAuthSession, signedInDestination } = await import('./auth-client.js');
             const session = await getUsableAuthSession();
 
             if (!session) {
@@ -54,8 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const role = await getProfileRole(session);
-            window.location.assign(role === 'dm' ? './dm.html' : './player.html');
+            window.location.assign(await signedInDestination(session));
         } catch (error) {
             console.error('Não foi possível verificar a sessão ativa.', error);
             window.location.assign('./login.html');

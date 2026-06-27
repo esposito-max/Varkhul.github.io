@@ -1,9 +1,12 @@
-import { escapeHtml, formatDate, initializeGmShell, requestJson } from './gm-common.js';
+import { cachedRequestJson, escapeHtml, formatDate, initializeGmShell, requestJson } from './gm-common.js';
+import { debounceRefresh, invalidateApiCache } from './data-client.js';
+import { subscribeToDatabaseChanges } from './realtime-client.js';
 
 const statGrid = document.querySelector('#gm-stat-grid');
 const recentCampaigns = document.querySelector('#recent-campaigns');
 const recentLore = document.querySelector('#recent-gm-lore');
 const requestList = document.querySelector('#dm-request-list');
+let dashboardSubscription = null;
 
 const loreScopeLabels = {
   general: 'Lore geral',
@@ -33,7 +36,8 @@ function renderRequests(items) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approved: button.dataset.review === 'approve' }),
       });
-      await loadRequests();
+      await invalidateApiCache({ tags: ['dm-home'] });
+      await loadDashboard({ forceRefresh: true });
     } catch (error) {
       alert(error.message);
       button.disabled = false;
@@ -41,30 +45,64 @@ function renderRequests(items) {
   }));
 }
 
-async function loadRequests() {
-  const payload = await requestJson('/api/dm/item-requests?status=pending');
-  renderRequests(payload.items || []);
+function renderDashboardSnapshot(snapshot = {}) {
+  const dashboard = snapshot.dashboard || {};
+  renderRequests(Array.isArray(snapshot.requests) ? snapshot.requests : []);
+  statGrid.innerHTML = [
+    statCard('Campanhas', dashboard.campaignCount, './dm-campaigns.html'),
+    statCard('Encontros ativos', dashboard.activeEncounterCount, './dm-campaigns.html'),
+    statCard('Mensagens não lidas', dashboard.unreadMessageCount, './dm-campaigns.html'),
+    statCard('Solicitações pendentes', dashboard.pendingItemRequestCount, '#dm-request-list'),
+  ].join('');
+  recentCampaigns.innerHTML = dashboard.recentCampaigns?.length
+    ? dashboard.recentCampaigns.map((item) => `<a class="gm-list-row" href="./dm-campaign.html?id=${encodeURIComponent(item.id)}"><strong>${escapeHtml(item.name)}</strong><small>${formatDate(item.updated_at)}</small></a>`).join('')
+    : '<div class="empty-state">Nenhuma campanha criada.</div>';
+  recentLore.innerHTML = dashboard.recentLore?.length
+    ? dashboard.recentLore.map((item) => `<a class="gm-list-row" href="./dm-lore.html?fileId=${encodeURIComponent(item.file_id || '')}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(loreScopeLabels[item.lore_scope] || item.lore_scope || 'Lore')} · ${formatDate(item.updated_at)}</small></a>`).join('')
+    : '<div class="empty-state">Nenhum documento de lore.</div>';
 }
 
-async function boot() {
-  if (!await initializeGmShell('home')) return;
+async function loadDashboard({ forceRefresh = false } = {}) {
   try {
-    const [dashboard] = await Promise.all([requestJson('/api/dm/dashboard'), loadRequests()]);
-    statGrid.innerHTML = [
-      statCard('Campanhas', dashboard.campaignCount, './dm-campaigns.html'),
-      statCard('Encontros ativos', dashboard.activeEncounterCount, './dm-campaigns.html'),
-      statCard('Mensagens não lidas', dashboard.unreadMessageCount, './dm-campaigns.html'),
-      statCard('Solicitações pendentes', dashboard.pendingItemRequestCount, '#dm-request-list'),
-    ].join('');
-    recentCampaigns.innerHTML = dashboard.recentCampaigns?.length
-      ? dashboard.recentCampaigns.map((item) => `<a class="gm-list-row" href="./dm-campaign.html?id=${encodeURIComponent(item.id)}"><strong>${escapeHtml(item.name)}</strong><small>${formatDate(item.updated_at)}</small></a>`).join('')
-      : '<div class="empty-state">Nenhuma campanha criada.</div>';
-    recentLore.innerHTML = dashboard.recentLore?.length
-      ? dashboard.recentLore.map((item) => `<a class="gm-list-row" href="./dm-lore.html?fileId=${encodeURIComponent(item.file_id || '')}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(loreScopeLabels[item.lore_scope] || item.lore_scope || 'Lore')} · ${formatDate(item.updated_at)}</small></a>`).join('')
-      : '<div class="empty-state">Nenhum documento de lore.</div>';
+    const snapshot = await cachedRequestJson('/api/dm/bootstrap', {
+      freshForMs: 10_000,
+      staleForMs: 24 * 60 * 60 * 1000,
+      forceRefresh,
+      tags: ['dm-home'],
+      onUpdate: renderDashboardSnapshot,
+    });
+    renderDashboardSnapshot(snapshot);
   } catch (error) {
     statGrid.innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`;
   }
 }
 
+const refreshDashboard = debounceRefresh(async () => {
+  await invalidateApiCache({ tags: ['dm-home'] });
+  await loadDashboard({ forceRefresh: true });
+}, 180);
+
+async function boot() {
+  if (!await initializeGmShell('home')) return;
+  await loadDashboard();
+  try {
+    dashboardSubscription = await subscribeToDatabaseChanges({
+      name: 'dm-home',
+      bindings: [
+        { table: 'campaigns' },
+        { table: 'encounters' },
+        { table: 'campaign_message_threads' },
+        { table: 'item_authorization_requests' },
+        { table: 'lore_entries' },
+      ],
+      onChange: refreshDashboard,
+      fallback: refreshDashboard,
+      fallbackIntervalMs: 30_000,
+    });
+  } catch {
+    // Cached dashboard and explicit actions remain fully usable.
+  }
+}
+
+window.addEventListener('beforeunload', () => { void dashboardSubscription?.unsubscribe(); });
 boot();

@@ -1,9 +1,11 @@
 import {
-  authenticatedFetch,
+  initializeAreaSwitcher,
   initializeLogoutButtons,
   requireAuthenticatedPage,
 } from './auth-client.js';
 import { escapeHtml, markdownToHtml } from './gm-common.js';
+import { cachedRequestJson, debounceRefresh, invalidateApiCache } from './data-client.js';
+import { subscribeToDatabaseChanges } from './realtime-client.js';
 
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
@@ -13,15 +15,7 @@ const form = document.querySelector('#lore-search-form');
 const input = document.querySelector('#lore-search-input');
 const sidebarToggle = document.querySelector('#sidebar-toggle');
 const lorePageLayout = document.querySelector('#lore-page-layout');
-
-async function requestJson(url) {
-  const response = await authenticatedFetch(url);
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.error || 'Não foi possível concluir a solicitação.');
-  }
-  return payload;
-}
+let loreSubscription = null;
 
 function initializeTheme() {
   const saved = localStorage.getItem('chronicle-theme');
@@ -43,9 +37,14 @@ sidebarToggle?.addEventListener('click', () => {
   sidebarToggle.textContent = collapsed ? 'Mostrar menu' : 'Ocultar menu';
 });
 
-async function loadList(query = '') {
+async function loadList(query = '', { forceRefresh = false } = {}) {
   try {
-    const payload = await requestJson(`/api/lore?q=${encodeURIComponent(query)}`);
+    const payload = await cachedRequestJson(`/api/lore?q=${encodeURIComponent(query)}`, {
+      freshForMs: 30_000,
+      staleForMs: 24 * 60 * 60 * 1000,
+      forceRefresh,
+      tags: ['player-lore'],
+    });
     const items = payload.items || [];
     list.innerHTML = items.length
       ? items.map((item) => `<button type="button" class="lore-list-item" data-slug="${escapeHtml(item.slug)}">
@@ -67,7 +66,11 @@ async function loadList(query = '') {
 async function openLore(slug) {
   try {
     reader.innerHTML = '<div class="empty-state">Abrindo página...</div>';
-    const item = await requestJson(`/api/lore/${encodeURIComponent(slug)}`);
+    const item = await cachedRequestJson(`/api/lore/${encodeURIComponent(slug)}`, {
+      freshForMs: 5 * 60 * 1000,
+      staleForMs: 7 * 24 * 60 * 60 * 1000,
+      tags: ['player-lore', `lore:${slug}`],
+    });
     reader.innerHTML = `<header>
         <p class="eyebrow">${escapeHtml(item.category || 'Lore')}</p>
         <h2>${escapeHtml(item.title)}</h2>
@@ -85,9 +88,15 @@ form.addEventListener('submit', (event) => {
   loadList(input.value.trim());
 });
 
+const refreshLore = debounceRefresh(async () => {
+  await invalidateApiCache({ tags: ['player-lore', 'player-home'] });
+  await loadList(input.value.trim(), { forceRefresh: true });
+}, 180);
+
 async function boot() {
   if (!await requireAuthenticatedPage('player')) return;
   initializeLogoutButtons();
+  await initializeAreaSwitcher('player');
   initializeTheme();
   const items = await loadList();
   const requested = new URLSearchParams(location.search).get('slug');
@@ -96,6 +105,18 @@ async function boot() {
   } else if (items.length) {
     await openLore(items[0].slug);
   }
+  try {
+    loreSubscription = await subscribeToDatabaseChanges({
+      name: 'player-lore',
+      bindings: [{ table: 'lore_entries' }, { table: 'lore_visits' }],
+      onChange: refreshLore,
+      fallback: refreshLore,
+      fallbackIntervalMs: 30_000,
+    });
+  } catch {
+    // The persisted lore cache remains available offline.
+  }
 }
 
+window.addEventListener('beforeunload', () => { void loreSubscription?.unsubscribe(); });
 boot();

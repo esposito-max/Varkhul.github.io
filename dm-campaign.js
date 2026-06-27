@@ -4,6 +4,7 @@ import {
   formatDate,
   initializeGmShell,
   markdownToHtml,
+  cachedRequestJson,
   requestJson,
   structuredDataToHtml,
 } from "./gm-common.js";
@@ -12,6 +13,8 @@ import {
   collectCampaignRules,
   mountCampaignRuleBuilder,
 } from "./campaign-rules.js";
+import { debounceRefresh, invalidateApiCache } from "./data-client.js";
+import { subscribeToDatabaseChanges } from "./realtime-client.js";
 const campaignId = currentId();
 const root = document.querySelector("#campaign-manager-root");
 const encounterDialog = document.querySelector("#encounter-create-dialog");
@@ -28,9 +31,9 @@ let threads = [];
 let requests = [];
 let activeTab = "overview";
 let activeEncounterId = "";
-let encounterPoll = null;
+let encounterSubscription = null;
 let activeEncounterRevision = -1;
-let campaignRefresh = null;
+let campaignSubscription = null;
 let creatureSuggestions = [];
 let creatureSearchTimer = null;
 
@@ -79,8 +82,8 @@ function setTab(tab) {
   document.querySelectorAll("[data-campaign-panel]").forEach((panel) => {
     panel.hidden = panel.dataset.campaignPanel !== tab;
   });
-  if (tab === "encounters" && activeEncounterId) startEncounterPolling();
-  else stopEncounterPolling();
+  if (tab === "encounters" && activeEncounterId) startEncounterRealtime();
+  else stopEncounterRealtime();
 }
 
 function campaignHeader() {
@@ -381,7 +384,8 @@ async function saveCampaignSettings(event) {
     campaign = { ...campaign, ...updated };
     closeDialog(campaignEditDialog);
     activeTab = "settings";
-    await load(false);
+    await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
   } catch (error) {
     setCampaignEditFeedback(error.message, "error");
   } finally {
@@ -465,7 +469,8 @@ function attachCampaignHandlers() {
           },
         );
         activeTab = "players";
-        await load(false);
+        await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
       } catch (error) {
         alert(error.message);
         button.disabled = false;
@@ -489,7 +494,8 @@ function attachCampaignHandlers() {
           },
         );
         activeTab = "players";
-        await load(false);
+        await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
       } catch (error) {
         alert(error.message);
         button.disabled = false;
@@ -530,7 +536,8 @@ async function reviewRequest(id, approved) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approved }),
     });
-    await load(false);
+    await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
   } catch (error) {
     alert(error.message);
   }
@@ -597,7 +604,8 @@ encounterForm.addEventListener("submit", async (event) => {
     encounterDialog.close();
     encounterForm.reset();
     activeTab = "encounters";
-    await load(false);
+    await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
     await openEncounter(encounter.id);
   } catch (error) {
     alert(error.message);
@@ -738,7 +746,7 @@ async function openEncounter(id, force = true) {
         <aside class="figma-initiative-order"><div class="section-heading-row"><div><p class="eyebrow">Rodada ${encounter.round}</p><h3>Ordem de iniciativa</h3></div>${encounter.initiativePhase === "running" ? '<button class="secondary-button compact-button" data-turn="previous">Anterior</button>' : ""}</div><div class="figma-initiative-order-list">${encounter.participants.length ? encounter.participants.map((participant) => initiativeOrderRow(participant, encounter)).join("") : '<div class="empty-state">Nenhum participante.</div>'}</div></aside>
       </div><footer>Atualização automática ativa · revisão ${encounter.revision}.</footer></section>`;
     attachEncounterHandlers(encounter);
-    startEncounterPolling();
+    startEncounterRealtime();
   } catch (error) {
     runner.innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`;
   }
@@ -981,7 +989,7 @@ function attachEncounterHandlers(encounter) {
     ?.addEventListener("click", () => {
       activeEncounterId = "";
       activeEncounterRevision = -1;
-      stopEncounterPolling();
+      stopEncounterRealtime();
       document.body.classList.remove("encounter-focus-mode");
       load(false);
     });
@@ -1067,7 +1075,8 @@ function attachEncounterHandlers(encounter) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !encounter.isActive }),
       });
-      await load(false);
+      await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
       await openEncounter(encounter.id);
     });
   document
@@ -1096,7 +1105,8 @@ function attachEncounterHandlers(encounter) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name }),
         });
-        await load(false);
+        await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
         await openEncounter(encounter.id);
       } catch (error) {
         alert(error.message);
@@ -1114,9 +1124,10 @@ function attachEncounterHandlers(encounter) {
         });
         activeEncounterId = "";
         activeEncounterRevision = -1;
-        stopEncounterPolling();
+        stopEncounterRealtime();
         document.body.classList.remove("encounter-focus-mode");
-        await load(false);
+        await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
       } catch (error) {
         alert(error.message);
       }
@@ -1277,31 +1288,46 @@ function attachEncounterHandlers(encounter) {
   }
 }
 
-function startEncounterPolling() {
-  stopEncounterPolling();
-  if (!activeEncounterId || activeTab !== "encounters") return;
-  encounterPoll = setInterval(
-    () => openEncounter(activeEncounterId, false),
-    2000,
-  );
-}
-function stopEncounterPolling() {
-  if (encounterPoll) clearInterval(encounterPoll);
-  encounterPoll = null;
+async function stopEncounterRealtime() {
+  if (!encounterSubscription) return;
+  const current = encounterSubscription;
+  encounterSubscription = null;
+  await current.unsubscribe().catch(() => {});
 }
 
-async function load(preserveRunner = true) {
+async function startEncounterRealtime() {
+  await stopEncounterRealtime();
+  if (!activeEncounterId || activeTab !== "encounters") return;
+  const encounterId = activeEncounterId;
+  const refresh = () => openEncounter(encounterId, false);
   try {
-    const [campaignPayload, threadPayload, requestPayload] = await Promise.all([
-      requestJson(`/api/dm/campaigns/${campaignId}`),
-      requestJson(`/api/dm/campaigns/${campaignId}/messages`),
-      requestJson(
-        `/api/dm/item-requests?status=pending&campaignId=${encodeURIComponent(campaignId)}`,
-      ),
-    ]);
-    campaign = campaignPayload;
-    threads = threadPayload.items || [];
-    requests = requestPayload.items || [];
+    encounterSubscription = await subscribeToDatabaseChanges({
+      name: `dm-encounter-${encounterId}`,
+      bindings: [
+        { table: "encounters", filter: `id=eq.${encounterId}` },
+        { table: "encounter_participants", filter: `encounter_id=eq.${encounterId}` },
+      ],
+      onChange: refresh,
+      fallback: refresh,
+      fallbackIntervalMs: 1000,
+    });
+  } catch {
+    const timer = window.setInterval(refresh, 1000);
+    encounterSubscription = { unsubscribe: async () => window.clearInterval(timer) };
+  }
+}
+
+async function load(preserveRunner = true, { forceRefresh = false } = {}) {
+  try {
+    const payload = await cachedRequestJson(`/api/dm/campaigns/${campaignId}/workspace`, {
+      freshForMs: 3000,
+      staleForMs: 24 * 60 * 60 * 1000,
+      forceRefresh,
+      tags: [`dm-campaign:${campaignId}`],
+    });
+    campaign = payload.campaign;
+    threads = payload.threads || [];
+    requests = payload.requests || [];
     const runnerId = preserveRunner ? activeEncounterId : "";
     renderCampaign();
     if (runnerId && activeTab === "encounters") await openEncounter(runnerId);
@@ -1312,7 +1338,8 @@ async function load(preserveRunner = true) {
 
 async function refreshCampaignMembership() {
   if (activeTab !== "encounters" || !activeEncounterId) {
-    await load(false);
+    await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+    await load(false, { forceRefresh: true });
     return;
   }
   try {
@@ -1340,7 +1367,34 @@ async function refreshCampaignMembership() {
       await openEncounter(activeEncounterId);
     }
   } catch {
-    /* the 2-second encounter poll keeps the last valid state visible */
+    /* preserve the last valid state while realtime reconnects */
+  }
+}
+
+const refreshCampaignWorkspace = debounceRefresh(async () => {
+  await invalidateApiCache({ tags: [`dm-campaign:${campaignId}`, "dm-home"] });
+  await refreshCampaignMembership();
+  await load(true, { forceRefresh: true });
+}, 180);
+
+async function startCampaignRealtime() {
+  try {
+    campaignSubscription = await subscribeToDatabaseChanges({
+      name: `dm-campaign-${campaignId}`,
+      bindings: [
+        { table: "campaigns", filter: `id=eq.${campaignId}` },
+        { table: "character_campaigns", filter: `campaign_id=eq.${campaignId}` },
+        { table: "campaign_message_threads", filter: `campaign_id=eq.${campaignId}` },
+        { table: "item_authorization_requests", filter: `campaign_id=eq.${campaignId}` },
+        { table: "campaign_notes", filter: `campaign_id=eq.${campaignId}` },
+        { table: "encounters", filter: `campaign_id=eq.${campaignId}` },
+      ],
+      onChange: refreshCampaignWorkspace,
+      fallback: refreshCampaignWorkspace,
+      fallbackIntervalMs: 30_000,
+    });
+  } catch {
+    // Cached workspace and explicit actions remain usable without realtime.
   }
 }
 
@@ -1351,10 +1405,10 @@ async function boot() {
     return;
   }
   await load();
-  campaignRefresh = setInterval(refreshCampaignMembership, 45000);
+  await startCampaignRealtime();
 }
 window.addEventListener("beforeunload", () => {
-  stopEncounterPolling();
-  if (campaignRefresh) clearInterval(campaignRefresh);
+  void stopEncounterRealtime();
+  void campaignSubscription?.unsubscribe();
 });
 boot();

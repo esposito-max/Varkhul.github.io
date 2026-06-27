@@ -1,5 +1,7 @@
-import { authenticatedFetch, initializeLogoutButtons, requireAuthenticatedPage } from './auth-client.js';
+import { initializeAreaSwitcher, initializeLogoutButtons, requireAuthenticatedPage } from './auth-client.js';
 import { displayValue, formatDate, markdownToHtml, structuredDataToHtml } from './gm-common.js';
+import { cachedRequestJson, debounceRefresh, invalidateApiCache, requestJson } from './data-client.js';
+import { subscribeToDatabaseChanges } from './realtime-client.js';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
 const saveStatus = document.querySelector('#sheet-save-status');
@@ -57,8 +59,8 @@ let activeView = 'sheet';
 let storeItems = [];
 let levelUpState = {};
 let characterCampaign = null;
-let characterCampaignPoll = null;
-let levelUpAccessPoll = null;
+let characterCampaignSubscription = null;
+let characterSubscription = null;
 let lastCharacterCampaignTurnNotice = null;
 
 function escapeHtml(value) {
@@ -95,19 +97,24 @@ function updateSidebarOverlayOffset() {
 window.addEventListener('resize', updateSidebarOverlayOffset);
 window.addEventListener('scroll', updateSidebarOverlayOffset, { passive: true });
 updateSidebarOverlayOffset();
-characterViewTabs.forEach((button) => button.addEventListener('click', () => {
+characterViewTabs.forEach((button) => button.addEventListener('click', async () => {
   captureInputs();
   activeView = button.dataset.characterView || 'sheet';
+  if (activeView === 'campaign' && character?.campaign && !characterCampaign) {
+    try { await loadCharacterCampaign(false); } catch (error) { showStatus(error.message, 'error'); }
+  }
   render();
 }));
-async function requestJson(url, options = {}) {
-  const response = await authenticatedFetch(url, options);
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || payload.errors?.join(' ') || 'A solicitação falhou.');
-  return payload;
-}
-function post(url, body) {
-  return requestJson(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+async function post(url, body) {
+  const result = await requestJson(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (character?.id) {
+    await invalidateApiCache({ tags: [`character:${character.id}`, 'player-home'] });
+  }
+  return result;
 }
 function classColor() {
   const name = character?.sheetData?.identity?.className || '';
@@ -190,7 +197,7 @@ function render() {
     button.setAttribute('aria-selected', String(selected));
   });
   if (activeView === 'details') {
-    stopCharacterCampaignPolling();
+    void stopCharacterCampaignRealtime();
     renderCharacterDetails({ sheet, identity, traits, portrait, initials, color });
     return;
   }
@@ -198,7 +205,7 @@ function render() {
     renderCharacterCampaignView();
     return;
   }
-  stopCharacterCampaignPolling();
+  void stopCharacterCampaignRealtime();
   sheetRoot.innerHTML = `
     ${notices.length ? `<section class="sheet-rule-notices">${notices.map((notice) => `<article><strong>${escapeHtml(notice.name)}</strong><span>${escapeHtml(notice.text)}</span></article>`).join('')}</section>` : ''}
     <section class="character-sheet-grid">
@@ -524,7 +531,7 @@ function renderCharacterCampaignView() {
     <section class="campaign-figma-panel campaign-board-panel" data-figma-node="76:37"><div class="campaign-figma-panel-inner">${renderCharacterCampaignBoard(characterCampaign)}</div></section>
   </section>`;
   bindCharacterCampaignInteractions();
-  startCharacterCampaignPolling();
+  void startCharacterCampaignRealtime();
   showStatus('Campanha sincronizada', 'ok');
 }
 
@@ -583,7 +590,8 @@ function bindCharacterCampaignInteractions() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markdown: data.get('markdown'), revision: Number(data.get('revision')) }),
       });
-      await loadCharacterCampaign(true);
+      await invalidateApiCache({ tags: [`character:${character.id}`, `campaign:${characterCampaign.id}`] });
+      await loadCharacterCampaign(true, { forceRefresh: true });
     } catch (error) {
       document.querySelector('#character-campaign-notes-feedback').innerHTML = `<span class="alert error">${escapeHtml(error.message)}</span>`;
     }
@@ -596,7 +604,8 @@ function bindCharacterCampaignInteractions() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body: data.get('body'), characterId: character.id }),
       });
-      await loadCharacterCampaign(true);
+      await invalidateApiCache({ tags: [`character:${character.id}`, `campaign:${characterCampaign.id}`] });
+      await loadCharacterCampaign(true, { forceRefresh: true });
     } catch (error) {
       document.querySelector('#character-campaign-message-feedback').innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`;
     }
@@ -608,7 +617,8 @@ function bindCharacterCampaignInteractions() {
       await requestJson(`/api/campaigns/${encodeURIComponent(characterCampaign.id)}/player-board`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }),
       });
-      await loadCharacterCampaign(true);
+      await invalidateApiCache({ tags: [`character:${character.id}`, `campaign:${characterCampaign.id}`] });
+      await loadCharacterCampaign(true, { forceRefresh: true });
     } catch (error) { showStatus(error.message, 'error'); }
   });
 }
@@ -620,27 +630,55 @@ function refreshCharacterCampaignInitiative() {
   bindCharacterCampaignEncounterInteractions();
 }
 
-function stopCharacterCampaignPolling() {
-  if (characterCampaignPoll) clearInterval(characterCampaignPoll);
-  characterCampaignPoll = null;
+async function stopCharacterCampaignRealtime() {
+  if (!characterCampaignSubscription) return;
+  const current = characterCampaignSubscription;
+  characterCampaignSubscription = null;
+  await current.unsubscribe().catch(() => {});
 }
 
-function startCharacterCampaignPolling() {
-  stopCharacterCampaignPolling();
+async function refreshCharacterCampaignEncounter() {
   if (!characterCampaign || activeView !== 'campaign') return;
-  characterCampaignPoll = setInterval(async () => {
-    if (activeView !== 'campaign' || !characterCampaign) { stopCharacterCampaignPolling(); return; }
-    try {
-      const payload = await requestJson(`/api/campaigns/${encodeURIComponent(characterCampaign.id)}/active-encounter`);
-      characterCampaign.activeEncounter = payload.encounter;
-      refreshCharacterCampaignInitiative();
-    } catch { /* retain the last synchronized encounter view */ }
-  }, 2000);
+  try {
+    const payload = await requestJson(`/api/campaigns/${encodeURIComponent(characterCampaign.id)}/active-encounter`);
+    characterCampaign.activeEncounter = payload.encounter;
+    refreshCharacterCampaignInitiative();
+  } catch {
+    // Preserve the last valid encounter state while connectivity recovers.
+  }
 }
 
-async function loadCharacterCampaign(shouldRender = false) {
+async function startCharacterCampaignRealtime() {
+  await stopCharacterCampaignRealtime();
+  if (!characterCampaign || activeView !== 'campaign') return;
+  const campaignId = characterCampaign.id;
+  try {
+    characterCampaignSubscription = await subscribeToDatabaseChanges({
+      name: `character-campaign-${campaignId}`,
+      bindings: [
+        { table: 'encounters', filter: `campaign_id=eq.${campaignId}` },
+        { table: 'encounter_participants' },
+        { table: 'campaign_notes', filter: `campaign_id=eq.${campaignId}` },
+      ],
+      onChange: refreshCharacterCampaignEncounter,
+      fallback: refreshCharacterCampaignEncounter,
+      fallbackIntervalMs: 1000,
+    });
+  } catch {
+    const timer = window.setInterval(refreshCharacterCampaignEncounter, 1000);
+    characterCampaignSubscription = { unsubscribe: async () => window.clearInterval(timer) };
+  }
+}
+
+async function loadCharacterCampaign(shouldRender = false, { forceRefresh = false } = {}) {
   if (!character) return;
-  const payload = await requestJson(`/api/characters/${encodeURIComponent(character.id)}/campaign`);
+  const url = `/api/characters/${encodeURIComponent(character.id)}/campaign`;
+  const payload = await cachedRequestJson(url, {
+    freshForMs: 3000,
+    staleForMs: 60 * 60 * 1000,
+    forceRefresh,
+    tags: [`character:${character.id}`, `campaign:${character.campaign?.id || ''}`],
+  });
   characterCampaign = payload.campaign || null;
   if (characterCampaignTab) characterCampaignTab.hidden = !characterCampaign;
   if (!characterCampaign && activeView === 'campaign') activeView = 'sheet';
@@ -1061,32 +1099,67 @@ async function refreshLevelUpAccess() {
   }
 }
 
-function startLevelUpAccessPolling() {
-  if (levelUpAccessPoll) window.clearInterval(levelUpAccessPoll);
-  levelUpAccessPoll = window.setInterval(refreshLevelUpAccess, 15000);
+const refreshCharacterWorkspace = debounceRefresh(async () => {
+  if (!character?.id || document.hidden) return;
+  try {
+    await invalidateApiCache({ tags: [`character:${character.id}`] });
+    const payload = await cachedRequestJson(`/api/characters/${encodeURIComponent(character.id)}/workspace`, {
+      freshForMs: 0,
+      staleForMs: 24 * 60 * 60 * 1000,
+      forceRefresh: true,
+      tags: [`character:${character.id}`, 'catalog-items'],
+    });
+    character = payload.character;
+    storeItems = payload.items || [];
+    if (characterCampaignTab) characterCampaignTab.hidden = !character.campaign;
+    render();
+  } catch {
+    // Keep the locally available sheet when a background refresh fails.
+  }
+}, 180);
+
+async function startCharacterRealtime() {
+  try {
+    characterSubscription = await subscribeToDatabaseChanges({
+      name: `character-${character.id}`,
+      bindings: [
+        { table: 'characters', filter: `id=eq.${character.id}` },
+        { table: 'character_campaigns', filter: `character_id=eq.${character.id}` },
+        { table: 'character_level_up_authorizations', filter: `character_id=eq.${character.id}` },
+      ],
+      onChange: refreshCharacterWorkspace,
+      fallback: refreshLevelUpAccess,
+      fallbackIntervalMs: 30_000,
+    });
+  } catch {
+    // Explicit saves and focus refreshes still keep the sheet current.
+  }
 }
 
 async function initialize() {
   if (!await requireAuthenticatedPage('player')) return;
-  initializeTheme(); const id = new URLSearchParams(window.location.search).get('id');
+  initializeLogoutButtons();
+  await initializeAreaSwitcher('player');
+  initializeTheme();
+  const id = new URLSearchParams(window.location.search).get('id');
   if (!id) { sheetRoot.innerHTML = '<div class="alert error">Nenhum personagem foi informado.</div>'; return; }
   try {
-    const [characterPayload, itemsPayload] = await Promise.all([
-      requestJson(`/api/characters/${encodeURIComponent(id)}`),
-      requestJson('/api/items?limit=250'),
-    ]);
-    character = characterPayload;
-    storeItems = itemsPayload.items || [];
-    await loadCharacterCampaign(false);
+    const payload = await cachedRequestJson(`/api/characters/${encodeURIComponent(id)}/workspace`, {
+      freshForMs: 10_000,
+      staleForMs: 24 * 60 * 60 * 1000,
+      tags: [`character:${id}`, 'catalog-items'],
+    });
+    character = payload.character;
+    storeItems = payload.items || [];
+    if (characterCampaignTab) characterCampaignTab.hidden = !character.campaign;
     render();
-    startLevelUpAccessPolling();
+    await startCharacterRealtime();
   } catch (error) { sheetRoot.innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`; showStatus('Ficha indisponível', 'error'); }
 }
 window.addEventListener('focus', refreshLevelUpAccess);
 window.addEventListener('beforeunload', () => {
-  if (levelUpAccessPoll) window.clearInterval(levelUpAccessPoll);
+  void characterSubscription?.unsubscribe();
+  void characterCampaignSubscription?.unsubscribe();
 });
 
 initialize();
-
-initializeLogoutButtons();

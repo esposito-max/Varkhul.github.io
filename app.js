@@ -1,5 +1,14 @@
-import { authenticatedFetch, initializeLogoutButtons, requireAuthenticatedPage, resolveApiUrl } from './auth-client.js';
+import {
+  initializeAreaSwitcher,
+  initializeLogoutButtons,
+  invalidateProfileRoleCache,
+  requireAuthenticatedPage,
+  resolveApiUrl,
+  setPreferredArea,
+} from './auth-client.js';
 import { displayValue, formatDate, markdownToHtml, structuredDataToHtml } from './gm-common.js';
+import { cachedRequestJson, debounceRefresh, invalidateApiCache, requestJson } from './data-client.js';
+import { subscribeToDatabaseChanges } from './realtime-client.js';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
 const healthBadge = document.querySelector('#health-badge');
@@ -49,7 +58,8 @@ const entityNamesPtBr = {
 let characters = [];
 let campaigns = [];
 let pendingJoinCode = '';
-let campaignEncounterPoll = null;
+let campaignEncounterSubscription = null;
+let playerHomeSubscription = null;
 let lastPlayerTurnNotification = null;
 let promotionRequestId = '';
 let promotionExpiresAt = 0;
@@ -89,12 +99,6 @@ themeButton.addEventListener('click', () => {
   localStorage.setItem('chronicle-theme', root.dataset.theme);
   updateThemeButton();
 });
-async function requestJson(url, options = {}) {
-  const response = await authenticatedFetch(url, options);
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'A solicitação falhou.');
-  return payload;
-}
 function openDialog(html) {
   homeDialogContent.innerHTML = html;
   if (homeDialog.open) return;
@@ -147,7 +151,8 @@ async function deleteCharacter(characterId, characterName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
-    await loadHome();
+    await invalidateApiCache({ tags: ['player-home'] });
+    await loadHome({ forceRefresh: true });
   } catch (error) {
     alert(error.message);
   }
@@ -246,6 +251,9 @@ promotionForm.addEventListener('submit', async (event) => {
       }),
     });
     clearPromotionCountdown();
+    invalidateProfileRoleCache();
+    setPreferredArea('dm');
+    await invalidateApiCache({ tags: ['player-home'] });
     promotionFeedback.textContent = 'Conta promovida. Abrindo o painel do Mestre...';
     window.location.assign('./dm.html');
   } catch (error) {
@@ -347,19 +355,53 @@ function renderPlayerEncounter(encounter) {
   showPlayerTurnNotification(encounter);
 }
 
-function stopCampaignEncounterPolling() { if (campaignEncounterPoll) clearInterval(campaignEncounterPoll); campaignEncounterPoll = null; }
-function startCampaignEncounterPolling(campaignId) {
-  stopCampaignEncounterPolling();
-  campaignEncounterPoll = setInterval(async () => {
-    if (!homeDialog.open) { stopCampaignEncounterPolling(); return; }
-    try { const payload = await requestJson(`/api/campaigns/${encodeURIComponent(campaignId)}/active-encounter`); renderPlayerEncounter(payload.encounter); } catch { /* keep the last synchronized view */ }
-  }, 2000);
+async function stopCampaignEncounterRealtime() {
+  if (!campaignEncounterSubscription) return;
+  const current = campaignEncounterSubscription;
+  campaignEncounterSubscription = null;
+  await current.unsubscribe().catch(() => {});
 }
-homeDialog.addEventListener('close', stopCampaignEncounterPolling);
 
-async function openCampaign(campaignId) {
+async function refreshCampaignEncounter(campaignId) {
+  if (!homeDialog.open) return;
   try {
-    const campaign = await requestJson(`/api/campaigns/${encodeURIComponent(campaignId)}`);
+    const payload = await requestJson(`/api/campaigns/${encodeURIComponent(campaignId)}/active-encounter`);
+    renderPlayerEncounter(payload.encounter);
+  } catch {
+    // Keep the last synchronized encounter while the connection recovers.
+  }
+}
+
+async function startCampaignEncounterRealtime(campaignId) {
+  await stopCampaignEncounterRealtime();
+  try {
+    campaignEncounterSubscription = await subscribeToDatabaseChanges({
+      name: `player-campaign-${campaignId}`,
+      bindings: [
+        { table: 'encounters', filter: `campaign_id=eq.${campaignId}` },
+        { table: 'encounter_participants' },
+      ],
+      onChange: () => refreshCampaignEncounter(campaignId),
+      fallback: () => refreshCampaignEncounter(campaignId),
+      fallbackIntervalMs: 1000,
+    });
+  } catch {
+    // Realtime unavailable: use the built-in one-second fallback behavior locally.
+    const timer = window.setInterval(() => refreshCampaignEncounter(campaignId), 1000);
+    campaignEncounterSubscription = { unsubscribe: async () => window.clearInterval(timer) };
+  }
+}
+homeDialog.addEventListener('close', () => { void stopCampaignEncounterRealtime(); });
+
+async function openCampaign(campaignId, { forceRefresh = false } = {}) {
+  try {
+    const campaignUrl = `/api/campaigns/${encodeURIComponent(campaignId)}`;
+    const campaign = await cachedRequestJson(campaignUrl, {
+      freshForMs: 3000,
+      staleForMs: 60 * 60 * 1000,
+      forceRefresh,
+      tags: [`campaign:${campaignId}`],
+    });
     const characterOptions = campaign.characters?.map((character) => `<option value="${escapeHtml(character.id)}">${escapeHtml(character.name)}</option>`).join('') || '';
     const conversations = campaign.messageThreads?.length ? campaign.messageThreads.map((thread) => `<article class="player-gm-thread"><header><strong>${escapeHtml(thread.characterName || 'Conversa da campanha')}</strong></header>${thread.messages.map((message) => `<div class="player-gm-message ${message.fromGm ? 'from-gm' : 'from-player'}"><strong>${message.fromGm ? 'Mestre' : 'Você'}</strong><p>${escapeHtml(message.body)}</p><time datetime="${escapeHtml(message.createdAt || '')}">${formatDate(message.createdAt)}</time></div>`).join('')}</article>`).join('') : '<p class="muted">Nenhuma mensagem enviada ainda.</p>';
     openDialog(`<article class="campaign-manager-player">
@@ -395,23 +437,23 @@ async function openCampaign(campaignId) {
     document.querySelector('#player-campaign-notes-form').addEventListener('submit', submitCampaignNotes);
     const notes = document.querySelector('#player-campaign-notes-form textarea');
     notes.addEventListener('input', () => { document.querySelector('#player-notes-preview').innerHTML = markdownToHtml(notes.value); });
-    startCampaignEncounterPolling(campaign.id);
+    void startCampaignEncounterRealtime(campaign.id);
   } catch (error) { openDialog(`<div class="alert error">${escapeHtml(error.message)}</div>`); }
 }
 async function submitGmMessage(event) {
   event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); const body = data.get('body');
   const feedback = document.querySelector('#gm-message-feedback');
-  try { await requestJson(`/api/campaigns/${form.dataset.campaignId}/message-gm`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({body, characterId:data.get('characterId') || null})}); form.reset(); feedback.innerHTML='<div class="alert success">Mensagem enviada ao Mestre.</div>'; await openCampaign(form.dataset.campaignId); }
+  try { await requestJson(`/api/campaigns/${form.dataset.campaignId}/message-gm`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({body, characterId:data.get('characterId') || null})}); form.reset(); feedback.innerHTML='<div class="alert success">Mensagem enviada ao Mestre.</div>'; await invalidateApiCache({ tags: [`campaign:${form.dataset.campaignId}`] }); await openCampaign(form.dataset.campaignId, { forceRefresh: true }); }
   catch (error) { feedback.innerHTML=`<div class="alert error">${escapeHtml(error.message)}</div>`; }
 }
 async function submitCampaignNotes(event) {
   event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); const feedback = document.querySelector('#player-notes-feedback');
-  try { await requestJson(`/api/campaigns/${form.dataset.campaignId}/notes`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({markdown:data.get('markdown'), revision:Number(data.get('revision'))})}); feedback.innerHTML='<div class="alert success">Anotações salvas.</div>'; await openCampaign(form.dataset.campaignId); }
+  try { await requestJson(`/api/campaigns/${form.dataset.campaignId}/notes`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({markdown:data.get('markdown'), revision:Number(data.get('revision'))})}); feedback.innerHTML='<div class="alert success">Anotações salvas.</div>'; await invalidateApiCache({ tags: [`campaign:${form.dataset.campaignId}`] }); await openCampaign(form.dataset.campaignId, { forceRefresh: true }); }
   catch (error) { feedback.innerHTML=`<div class="alert error">${escapeHtml(error.message)}</div>`; }
 }
 async function submitBoardPost(event) {
   event.preventDefault(); const form = event.currentTarget; const body = new FormData(form).get('body');
-  try { await requestJson(`/api/campaigns/${form.dataset.campaignId}/player-board`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({body})}); await openCampaign(form.dataset.campaignId); }
+  try { await requestJson(`/api/campaigns/${form.dataset.campaignId}/player-board`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({body})}); await invalidateApiCache({ tags: [`campaign:${form.dataset.campaignId}`] }); await openCampaign(form.dataset.campaignId, { forceRefresh: true }); }
   catch (error) { alert(error.message); }
 }
 
@@ -434,7 +476,8 @@ async function submitCampaignJoin(event) {
   try {
     const payload = await requestJson('/api/campaigns/join', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({joinCode:pendingJoinCode, characterId})});
     homeDialog.close(); campaignFeedback.textContent = `${payload.campaign.name} vinculada ao personagem.`; campaignCodeForm.reset();
-    campaigns = (await requestJson('/api/campaigns')).items || []; renderCampaigns();
+    await invalidateApiCache({ tags: ['player-home'] });
+    await loadHome({ forceRefresh: true });
   } catch (error) { document.querySelector('.join-character-dialog').insertAdjacentHTML('beforeend', `<div class="alert error">${escapeHtml(error.message)}</div>`); }
 }
 
@@ -442,7 +485,11 @@ quickSearchForm.addEventListener('submit', async (event) => {
   event.preventDefault(); const q = quickSearchInput.value.trim(); if (q.length < 2) return;
   quickSearchResults.innerHTML = '<div class="empty-state">Pesquisando...</div>';
   try {
-    const payload = await requestJson(`/api/quick-search?q=${encodeURIComponent(q)}&limit=30`);
+    const payload = await cachedRequestJson(`/api/quick-search?q=${encodeURIComponent(q)}&limit=30`, {
+      freshForMs: 5 * 60 * 1000,
+      staleForMs: 7 * 24 * 60 * 60 * 1000,
+      tags: ['rules-search'],
+    });
     renderQuickResults(payload.items || []);
   } catch (error) { quickSearchResults.innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`; }
 });
@@ -455,23 +502,79 @@ function openQuickCard(item) {
   openDialog(`<article class="reference-detail-card"><header><p class="eyebrow">${escapeHtml(entityNamesPtBr[item.type] || item.type)}</p><h2>${escapeHtml(item.name)}</h2><div><span>${escapeHtml(displayValue(item.category || ''))}</span><strong>${escapeHtml(item.source || '')}${item.page ? ` p.${escapeHtml(item.page)}` : ''}</strong></div></header><div class="reference-divider"></div><p>${escapeHtml(item.description || 'Sem descrição disponível no catálogo.')}</p></article>`);
 }
 
-async function loadHome() {
-  initializeTheme(); healthBadge.className='status-badge pending'; healthBadge.textContent='Carregando painel';
+function applyHomeSnapshot(snapshot = {}) {
+  const profile = snapshot.profile || {};
+  characters = Array.isArray(snapshot.characters) ? snapshot.characters : [];
+  campaigns = Array.isArray(snapshot.campaigns) ? snapshot.campaigns : [];
+  playerWelcome.textContent = `Bem-vindo, ${profile.displayName || 'jogador'}, a Varkhul`;
+  renderCharacters();
+  renderCampaigns();
+  renderRecentLore(Array.isArray(snapshot.recent_lore) ? snapshot.recent_lore : []);
+  renderPromotionState(snapshot.promotion || {});
+  healthBadge.className = 'status-badge ok';
+  healthBadge.textContent = navigator.onLine === false ? 'Dados salvos neste dispositivo' : 'Painel atualizado';
+}
+
+async function loadHome({ forceRefresh = false } = {}) {
+  initializeTheme();
+  if (!characters.length) {
+    healthBadge.className = 'status-badge pending';
+    healthBadge.textContent = 'Carregando painel';
+  }
   try {
-    const [profile, characterPayload, campaignPayload, lorePayload] = await Promise.all([requestJson('/api/profile'), requestJson('/api/characters'), requestJson('/api/campaigns'), requestJson('/api/lore/recent?limit=6')]);
-    characters = characterPayload.items || []; campaigns = campaignPayload.items || [];
-    playerWelcome.textContent = `Bem-vindo, ${profile.displayName || 'jogador'}, a Varkhul`;
-    renderCharacters(); renderCampaigns(); renderRecentLore(lorePayload.items || []);
-    await loadPromotionStatus();
-    healthBadge.className='status-badge ok'; healthBadge.textContent='Painel atualizado';
+    const snapshot = await cachedRequestJson('/api/player/bootstrap', {
+      freshForMs: 10_000,
+      staleForMs: 24 * 60 * 60 * 1000,
+      forceRefresh,
+      tags: ['player-home'],
+      onUpdate: applyHomeSnapshot,
+    });
+    applyHomeSnapshot(snapshot);
   } catch (error) {
-    healthBadge.className='status-badge error'; healthBadge.textContent='Falha ao carregar'; characterGrid.innerHTML=`<div class="alert error">${escapeHtml(error.message)}</div>`;
+    healthBadge.className = 'status-badge error';
+    healthBadge.textContent = 'Falha ao carregar';
+    characterGrid.innerHTML = `<div class="alert error">${escapeHtml(error.message)}</div>`;
   }
 }
+
+const refreshPlayerHome = debounceRefresh(async () => {
+  await invalidateApiCache({ tags: ['player-home'] });
+  await loadHome({ forceRefresh: true });
+}, 180);
+
+async function startPlayerHomeRealtime() {
+  try {
+    playerHomeSubscription = await subscribeToDatabaseChanges({
+      name: 'player-home',
+      bindings: [
+        { table: 'profiles' },
+        { table: 'characters' },
+        { table: 'character_campaigns' },
+        { table: 'campaigns' },
+        { table: 'lore_entries' },
+        { table: 'lore_visits' },
+        { table: 'gm_promotion_requests' },
+      ],
+      onChange: refreshPlayerHome,
+      fallback: refreshPlayerHome,
+      fallbackIntervalMs: 30_000,
+    });
+  } catch {
+    // Cached data remains available; explicit actions still revalidate immediately.
+  }
+}
+
 async function initializePlayerHome() {
   if (!await requireAuthenticatedPage('player')) return;
   initializeLogoutButtons();
+  await initializeAreaSwitcher('player');
   await loadHome();
+  await startPlayerHomeRealtime();
 }
+
+window.addEventListener('beforeunload', () => {
+  void playerHomeSubscription?.unsubscribe();
+  void campaignEncounterSubscription?.unsubscribe();
+});
 
 initializePlayerHome();

@@ -1,4 +1,5 @@
-import { authenticatedFetch, initializeLogoutButtons, requireAuthenticatedPage } from './auth-client.js';
+import { initializeAreaSwitcher, initializeLogoutButtons, requireAuthenticatedPage } from './auth-client.js';
+import { cachedRequestJson, invalidateApiCache, requestJson } from './data-client.js';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
 const statusBadge = document.querySelector('#creator-status');
@@ -99,23 +100,17 @@ themeButton.addEventListener('click', () => {
   updateThemeButton();
 });
 
-async function requestJson(url, options = {}) {
-  const response = await authenticatedFetch(url, options);
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(payload.error || payload.errors?.join(' ') || 'A solicitação falhou.');
-    error.payload = payload;
-    error.status = response.status;
-    throw error;
-  }
-  return payload;
-}
-
 async function initialize() {
   if (!await requireAuthenticatedPage('player')) return;
+  initializeLogoutButtons();
+  await initializeAreaSwitcher('player');
   initializeTheme();
   try {
-    const payload = await requestJson('/api/creator/bootstrap');
+    const payload = await cachedRequestJson('/api/creator/bootstrap', {
+      freshForMs: 24 * 60 * 60 * 1000,
+      staleForMs: 30 * 24 * 60 * 60 * 1000,
+      tags: ['rules-catalog'],
+    });
     if (!payload.ready) {
       showBlocker(payload.error || 'O catálogo ainda não está pronto.');
       return;
@@ -648,7 +643,11 @@ async function renderSpellsStep() {
     try {
       const params = new URLSearchParams({ classKey: spellClassKey, maxLevel: String(spellcasting.maxSpellLevel) });
       if (spellSubclassKey) params.set('subclassKey', spellSubclassKey);
-      const payload = await requestJson(`/api/creator/spells?${params}`);
+      const payload = await cachedRequestJson(`/api/creator/spells?${params}`, {
+        freshForMs: 24 * 60 * 60 * 1000,
+        staleForMs: 30 * 24 * 60 * 60 * 1000,
+        tags: ['rules-catalog'],
+      });
       spellOptions = payload.items || [];
       loadedSpellKey = key;
     } catch (error) {
@@ -907,6 +906,7 @@ createButton.addEventListener('click', async () => {
     });
     successBox.hidden = false;
     successBox.textContent = `${payload.character.name} foi criado. Abrindo a ficha...`;
+    await invalidateApiCache({ tags: ['player-home'] });
     window.location.assign(`./character.html?id=${encodeURIComponent(payload.character.id)}`);
     return;
   } catch (error) {
@@ -1182,5 +1182,3 @@ function abilityLabel(value) {
 function roman(value) { return ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'][Number(value) - 1] || String(value); }
 
 initialize();
-
-initializeLogoutButtons();

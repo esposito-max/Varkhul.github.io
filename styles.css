@@ -2074,3 +2074,18 @@ code * {
   font-weight: 700;
   color: var(--primary);
 }
+
+/* Render long, off-screen collections only when they approach the viewport. */
+@supports (content-visibility: auto) {
+  .player-character-card,
+  .campaign-card,
+  .gm-campaign-card,
+  .resource-card,
+  .gm-list-row,
+  .initiative-row,
+  .player-initiative-row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 14rem;
+  }
+}
+

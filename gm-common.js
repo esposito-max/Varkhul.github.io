@@ -1,8 +1,9 @@
 import {
-  authenticatedFetch,
+  initializeAreaSwitcher,
   initializeLogoutButtons,
   requireAuthenticatedPage,
 } from './auth-client.js';
+import { cachedRequestJson, requestJson } from './data-client.js';
 
 export const root = document.documentElement;
 
@@ -250,18 +251,12 @@ export function structuredDataToHtml(value, options = {}) {
   return render(value);
 }
 
-export async function requestJson(url, options = {}) {
-  const response = await authenticatedFetch(url, options);
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.error || 'Não foi possível concluir a solicitação.');
-  }
-  return payload;
-}
+export { cachedRequestJson, requestJson };
 
 export async function initializeGmShell(activeTab) {
   if (!await requireAuthenticatedPage('dm')) return false;
   initializeLogoutButtons();
+  await initializeAreaSwitcher('dm');
   const saved = localStorage.getItem('chronicle-theme');
   if (saved === 'light' || saved === 'dark') root.dataset.theme = saved;
   const themeButton = document.querySelector('#theme-toggle');

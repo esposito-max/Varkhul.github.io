@@ -1,5 +1,49 @@
 const SESSION_KEY = 'chronicle-auth-session';
+const ROLE_CACHE_KEY = 'chronicle-profile-role';
+const PREFERRED_AREA_KEY = 'chronicle-preferred-area';
+const ROLE_CACHE_TTL_MS = 5 * 60 * 1000;
 let configPromise = null;
+let rolePromise = null;
+
+function decodeJwtPayload(token) {
+  try {
+    const part = String(token || '').split('.')[1];
+    if (!part) return {};
+    const normalized = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(atob(padded));
+  } catch {
+    return {};
+  }
+}
+
+function sessionUserId(session) {
+  return String(session?.user?.id || decodeJwtPayload(session?.accessToken)?.sub || '');
+}
+
+export function getPreferredArea() {
+  return localStorage.getItem(PREFERRED_AREA_KEY) === 'player' ? 'player' : 'dm';
+}
+
+export function setPreferredArea(area) {
+  localStorage.setItem(PREFERRED_AREA_KEY, area === 'player' ? 'player' : 'dm');
+}
+
+export function invalidateProfileRoleCache() {
+  rolePromise = null;
+  localStorage.removeItem(ROLE_CACHE_KEY);
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // Static caching is an optimization; the application remains usable without it.
+    });
+  }, { once: true });
+}
+
+registerServiceWorker();
 
 export function getApiBaseUrl() {
   const configured = String(
@@ -75,6 +119,8 @@ export function storeAuthSession(payload) {
 
 export function clearAuthSession() {
   localStorage.removeItem(SESSION_KEY);
+  invalidateProfileRoleCache();
+  globalThis.dispatchEvent?.(new CustomEvent('chronicle:session-cleared'));
 }
 
 function authHeaders(config, accessToken = '') {
@@ -154,29 +200,52 @@ export async function getAuthenticatedUser(session = readAuthSession()) {
   return response.json();
 }
 
-export async function getProfileRole(session = readAuthSession()) {
-  const user = await getAuthenticatedUser(session);
-  if (!user?.id) return 'player';
-  const config = await loadAuthConfig();
-  const url = new URL(`${config.supabaseUrl}/rest/v1/profiles`);
-  url.searchParams.set('id', `eq.${user.id}`);
-  url.searchParams.set('select', 'role');
-  url.searchParams.set('limit', '1');
-  const response = await fetch(url, {
-    headers: {
-      apikey: config.anonKey,
-      Authorization: `Bearer ${session.accessToken}`,
-      Accept: 'application/json',
-    },
-  });
-  if (!response.ok) return 'player';
-  const rows = await response.json().catch(() => []);
-  return rows[0]?.role === 'dm' ? 'dm' : 'player';
+export async function getProfileRole(session = readAuthSession(), { force = false } = {}) {
+  const userId = sessionUserId(session);
+  if (!session?.accessToken || !userId) return 'player';
+
+  if (!force) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(ROLE_CACHE_KEY) || 'null');
+      if (cached?.userId === userId && Date.now() - Number(cached.storedAt || 0) < ROLE_CACHE_TTL_MS) {
+        return cached.role === 'dm' ? 'dm' : 'player';
+      }
+    } catch {
+      localStorage.removeItem(ROLE_CACHE_KEY);
+    }
+    if (rolePromise) return rolePromise;
+  }
+
+  rolePromise = (async () => {
+    const config = await loadAuthConfig();
+    const url = new URL(`${config.supabaseUrl}/rest/v1/profiles`);
+    url.searchParams.set('id', `eq.${userId}`);
+    url.searchParams.set('select', 'role');
+    url.searchParams.set('limit', '1');
+    const response = await fetch(url, {
+      headers: {
+        apikey: config.anonKey,
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+    if (!response.ok) return 'player';
+    const rows = await response.json().catch(() => []);
+    const role = rows[0]?.role === 'dm' ? 'dm' : 'player';
+    localStorage.setItem(ROLE_CACHE_KEY, JSON.stringify({ userId, role, storedAt: Date.now() }));
+    return role;
+  })();
+
+  try {
+    return await rolePromise;
+  } finally {
+    rolePromise = null;
+  }
 }
 
 export async function signedInDestination(session = readAuthSession()) {
   const role = await getProfileRole(session);
-  const fallback = role === 'dm' ? './dm.html' : './player.html';
+  const fallback = role === 'dm' && getPreferredArea() === 'dm' ? './dm.html' : './player.html';
   const requested = safeNextPath(
     new URLSearchParams(window.location.search).get('returnTo'),
     fallback,
@@ -203,6 +272,7 @@ export async function signOut() {
   } catch {
     // Local session removal must still succeed when the network is unavailable.
   } finally {
+    await globalThis.__chronicleClearDataCache?.().catch(() => {});
     clearAuthSession();
   }
 }
@@ -265,6 +335,9 @@ export async function authenticatedFetch(input, options = {}, retry = true) {
       backend: backendOriginLabel(),
       error,
     });
+    if (error?.name === 'AbortError') {
+      throw new Error('O servidor demorou mais de 30 segundos para responder. Tente novamente.');
+    }
     throw new Error(
       'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
     );
@@ -281,20 +354,45 @@ export async function authenticatedFetch(input, options = {}, retry = true) {
   return response;
 }
 
-export async function requireAuthenticatedPage(expectedRole = null) {
+export async function requireAuthenticatedPage(expectedArea = null) {
   const session = await getUsableAuthSession();
   if (!session) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
     window.location.replace(`./login.html?returnTo=${encodeURIComponent(returnTo)}`);
     return null;
   }
-  if (expectedRole) {
+  if (expectedArea) {
     const role = await getProfileRole(session);
-    if (role !== expectedRole) {
-      window.location.replace(role === 'dm' ? './dm.html' : './player.html');
+    if (expectedArea === 'dm' && role !== 'dm') {
+      window.location.replace('./player.html');
       return null;
     }
+    setPreferredArea(expectedArea === 'dm' ? 'dm' : 'player');
   }
   return session;
+}
+
+export async function initializeAreaSwitcher(area) {
+  const session = readAuthSession();
+  const role = await getProfileRole(session);
+  setPreferredArea(area === 'dm' ? 'dm' : 'player');
+
+  document.querySelectorAll('[data-area-switch]').forEach((link) => {
+    link.addEventListener('click', () => setPreferredArea(link.dataset.areaSwitch));
+  });
+
+  if (area !== 'player' || role !== 'dm') return role;
+  document.querySelector('.sidebar-gm-promotion')?.setAttribute('hidden', '');
+  if (document.querySelector('[data-area-switch="dm"]')) return role;
+  const logout = document.querySelector('[data-auth-logout]');
+  if (!logout?.parentElement) return role;
+  const link = document.createElement('a');
+  link.className = 'secondary-button button-link area-switch-button';
+  link.href = './dm.html';
+  link.dataset.areaSwitch = 'dm';
+  link.textContent = 'Área do Mestre';
+  link.addEventListener('click', () => setPreferredArea('dm'));
+  logout.parentElement.insertBefore(link, logout);
+  return role;
 }
 

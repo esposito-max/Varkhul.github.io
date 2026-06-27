@@ -3,7 +3,7 @@ import {
   entityLabels,
   escapeHtml,
   initializeGmShell,
-  requestJson,
+  cachedRequestJson,
   structuredDataToHtml,
 } from './gm-common.js';
 
@@ -37,7 +37,11 @@ function render() {
 async function search() {
   const data = new FormData(form);
   results.innerHTML = '<div class="empty-state">Pesquisando...</div>';
-  const payload = await requestJson(`/api/dm/resources?q=${encodeURIComponent(data.get('q') || '')}&type=${encodeURIComponent(data.get('type') || '')}&limit=120`);
+  const payload = await cachedRequestJson(`/api/dm/resources?q=${encodeURIComponent(data.get('q') || '')}&type=${encodeURIComponent(data.get('type') || '')}&limit=120`, {
+    freshForMs: 24 * 60 * 60 * 1000,
+    staleForMs: 30 * 24 * 60 * 60 * 1000,
+    tags: ['rules-catalog'],
+  });
   items = payload.items || [];
   render();
 }
