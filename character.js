@@ -1,6 +1,6 @@
 import { initializeAreaSwitcher, initializeLogoutButtons, requireAuthenticatedPage } from './auth-client.js';
 import { displayValue, formatDate, markdownToHtml, structuredDataToHtml } from './gm-common.js';
-import { cachedRequestJson, debounceRefresh, invalidateApiCache, requestJson } from './data-client.js';
+import { cachedRequestJson, currentCacheScope, debounceRefresh, invalidateApiCache, requestJson } from './data-client.js';
 import { subscribeToDatabaseChanges } from './realtime-client.js';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
@@ -62,6 +62,27 @@ let characterCampaign = null;
 let characterCampaignSubscription = null;
 let characterSubscription = null;
 let lastCharacterCampaignTurnNotice = null;
+let characterUiStateKey = '';
+
+function restoreCharacterUiState(characterId) {
+  characterUiStateKey = `chronicle-character-ui:${currentCacheScope()}:${characterId}`;
+  try {
+    const state = JSON.parse(sessionStorage.getItem(characterUiStateKey) || 'null');
+    if (['sheet', 'details', 'campaign'].includes(state?.activeView)) activeView = state.activeView;
+    if (['attacks', 'spells', 'equipment'].includes(state?.activeTab)) activeTab = state.activeTab;
+  } catch {
+    // Session UI state is optional.
+  }
+}
+
+function persistCharacterUiState() {
+  if (!characterUiStateKey) return;
+  try {
+    sessionStorage.setItem(characterUiStateKey, JSON.stringify({ activeView, activeTab }));
+  } catch {
+    // The page remains usable when session storage is unavailable.
+  }
+}
 
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -100,6 +121,7 @@ updateSidebarOverlayOffset();
 characterViewTabs.forEach((button) => button.addEventListener('click', async () => {
   captureInputs();
   activeView = button.dataset.characterView || 'sheet';
+  persistCharacterUiState();
   if (activeView === 'campaign' && character?.campaign && !characterCampaign) {
     try { await loadCharacterCampaign(false); } catch (error) { showStatus(error.message, 'error'); }
   }
@@ -686,7 +708,7 @@ async function loadCharacterCampaign(shouldRender = false, { forceRefresh = fals
 }
 
 function bindSheetInteractions() {
-  document.querySelectorAll('[data-sheet-tab]').forEach((button) => button.addEventListener('click', () => { captureInputs(); activeTab = button.dataset.sheetTab; render(); }));
+  document.querySelectorAll('[data-sheet-tab]').forEach((button) => button.addEventListener('click', () => { captureInputs(); activeTab = button.dataset.sheetTab; persistCharacterUiState(); render(); }));
   document.querySelectorAll('[data-death-save]').forEach((button) => button.addEventListener('click', () => {
     captureInputs(); const state = character.sheetData.playState ||= {}; const key = button.dataset.deathSave === 'success' ? 'deathSaveSuccesses' : 'deathSaveFailures'; const count = Number(button.dataset.count); state[key] = Number(state[key] || 0) === count ? count - 1 : count; render(); showStatus('Alterações não salvas');
   }));
@@ -1143,6 +1165,7 @@ async function initialize() {
   initializeTheme();
   const id = new URLSearchParams(window.location.search).get('id');
   if (!id) { sheetRoot.innerHTML = '<div class="alert error">Nenhum personagem foi informado.</div>'; return; }
+  restoreCharacterUiState(id);
   try {
     const payload = await cachedRequestJson(`/api/characters/${encodeURIComponent(id)}/workspace`, {
       freshForMs: 10_000,

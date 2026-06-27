@@ -118,9 +118,12 @@ export function storeAuthSession(payload) {
 }
 
 export function clearAuthSession() {
+  const scope = sessionUserId(readAuthSession());
   localStorage.removeItem(SESSION_KEY);
   invalidateProfileRoleCache();
-  globalThis.dispatchEvent?.(new CustomEvent('chronicle:session-cleared'));
+  globalThis.dispatchEvent?.(new CustomEvent('chronicle:session-cleared', {
+    detail: { scope },
+  }));
 }
 
 function authHeaders(config, accessToken = '') {

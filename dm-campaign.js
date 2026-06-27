@@ -13,7 +13,7 @@ import {
   collectCampaignRules,
   mountCampaignRuleBuilder,
 } from "./campaign-rules.js";
-import { debounceRefresh, invalidateApiCache } from "./data-client.js";
+import { currentCacheScope, debounceRefresh, invalidateApiCache } from "./data-client.js";
 import { subscribeToDatabaseChanges } from "./realtime-client.js";
 const campaignId = currentId();
 const root = document.querySelector("#campaign-manager-root");
@@ -36,6 +36,25 @@ let activeEncounterRevision = -1;
 let campaignSubscription = null;
 let creatureSuggestions = [];
 let creatureSearchTimer = null;
+const campaignUiStateKey = `chronicle-dm-campaign-ui:${currentCacheScope()}:${campaignId}`;
+
+function restoreCampaignUiState() {
+  try {
+    const state = JSON.parse(sessionStorage.getItem(campaignUiStateKey) || 'null');
+    const allowedTabs = ['overview', 'players', 'encounters', 'messages', 'notes', 'lore', 'requests', 'settings'];
+    if (allowedTabs.includes(state?.activeTab)) activeTab = state.activeTab;
+  } catch {
+    // Session UI state is optional.
+  }
+}
+
+function persistCampaignUiState() {
+  try {
+    sessionStorage.setItem(campaignUiStateKey, JSON.stringify({ activeTab }));
+  } catch {
+    // The campaign manager remains usable when session storage is unavailable.
+  }
+}
 
 const encounterStatLabels = {
   armorClass: "AC",
@@ -72,6 +91,7 @@ function encounterStatsMarkup(state, settings) {
 
 function setTab(tab) {
   activeTab = tab;
+  persistCampaignUiState();
   if (tab !== "encounters")
     document.body.classList.remove("encounter-focus-mode");
   document
@@ -1399,6 +1419,7 @@ async function startCampaignRealtime() {
 }
 
 async function boot() {
+  restoreCampaignUiState();
   if (!await initializeGmShell("campaigns")) return;
   if (!campaignId) {
     root.innerHTML = '<div class="alert error">O identificador da campanha está ausente.</div>';
