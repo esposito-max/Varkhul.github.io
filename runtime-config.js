@@ -11,7 +11,6 @@
 const localFrontendHosts = new Set(['127.0.0.1', 'localhost']);
 
 window.CHRONICLE_RUNTIME_CONFIG = Object.freeze({
-  apiBaseUrl: localFrontendHosts.has(window.location.hostname)
-    ? ''
-    : 'https://a39965-824e.m.jrnm.app',
+  apiBaseUrl: 'https://went-waters-holdings-tag.trycloudflare.com',
 });
+
